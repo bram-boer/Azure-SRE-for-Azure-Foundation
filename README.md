@@ -160,3 +160,7 @@ This is an illustrative sequence, not a deployment-time commitment. Stop at any 
 | Region/data processing or applicable requirements unresolved | Block production ingestion; data/security owner approves after reviewing exact service/provider terms |
 
 **Scale only when** these controls are evidenced and the team can operate without the agent. Introduce approval-gated remediation one narrow, reversible action at a time as a separate design/release decision. Never start by delegating subscription creation, tenant-wide identity, shared-network changes, policy exemptions, cluster upgrades, destructive actions, or regional failover.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
