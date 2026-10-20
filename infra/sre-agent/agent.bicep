@@ -1,5 +1,6 @@
 // Resource-group-scoped core: identity, telemetry, SRE Agent, admin role.
 // Derived from https://github.com/microsoft/sre-agent/tree/main/sreagent-templates (bicep/agent-core.bicep).
+// Original: Copyright (c) Microsoft Corporation, MIT License. Modified for this starter kit; see THIRD-PARTY-NOTICES.md.
 
 param agentName string
 param location string

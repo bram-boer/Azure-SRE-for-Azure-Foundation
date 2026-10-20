@@ -184,7 +184,9 @@ This is an illustrative sequence, not a deployment-time commitment. Stop at any 
 
 ### License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE). Third-party material keeps its own licence: the SRE Agent Bicep template is MIT (Microsoft), and Microsoft Learn excerpts are CC BY 4.0. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+This is an independent starter kit, not an official Microsoft product.
 
 ---
 
