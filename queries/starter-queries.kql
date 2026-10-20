@@ -1,0 +1,123 @@
+// Run each query separately in its indicated engine. These are investigation
+// examples, not preconfigured alerts or evidence that ingestion is enabled.
+
+// Log Analytics: requires subscription Activity Log export (UC01/UC03/UC04).
+AzureActivity
+| where TimeGenerated > ago(2h)
+| where ActivityStatusValue =~ "Failed"
+| project TimeGenerated, SubscriptionId, ResourceGroup, ResourceId,
+    OperationNameValue, ActivityStatusValue, CorrelationId, Properties
+| order by TimeGenerated desc
+
+// Log Analytics: successful writes are context, not proof of causation (UC04).
+AzureActivity
+| where TimeGenerated > ago(2h)
+| where ActivityStatusValue =~ "Success"
+| where OperationNameValue endswith "/write"
+| project TimeGenerated, ResourceId, OperationNameValue, CorrelationId
+| order by TimeGenerated desc
+
+// Log Analytics: Container Insights inventory; not available from metrics alone (UC08).
+KubePodInventory
+| where TimeGenerated > ago(30m)
+| summarize arg_max(TimeGenerated, *) by ClusterId, Namespace, Name
+| where PodStatus !in ("Running", "Succeeded")
+| project TimeGenerated, ClusterId, Namespace, Name, PodStatus
+
+// Log Analytics: check ingestion cost contribution, not an invoice (UC11).
+Usage
+| where TimeGenerated > ago(7d)
+| where IsBillable == true
+| summarize IngestedGB = sum(Quantity) / 1000 by DataType
+| order by IngestedGB desc
+
+// Azure Resource Graph Explorer, NOT Log Analytics (UC01/UC02).
+// RBAC limits the subscriptions returned. Set the approved subscription scope.
+PolicyResources
+| where type =~ "microsoft.policyinsights/policystates"
+| extend complianceState = tostring(properties.complianceState),
+    resourceId = tostring(properties.resourceId),
+    assignmentId = tostring(properties.policyAssignmentId)
+| where complianceState =~ "NonCompliant"
+| project subscriptionId, resourceId, assignmentId, complianceState
+
+// Azure Resource Graph Explorer: inventory only, not an ownership authority.
+Resources
+| where type =~ "microsoft.containerservice/managedclusters"
+| project id, name, subscriptionId, resourceGroup, location, tags
+
+// ===== WAF pillar use cases (waf-pillar-use-cases.md) =====
+
+// W1 Reliability - Azure Resource Graph: open HighAvailability Advisor recommendations.
+advisorresources
+| where type == "microsoft.advisor/recommendations"
+| where tostring(properties.category) == "HighAvailability"
+| extend impact = tostring(properties.impact),
+    problem = tostring(properties.shortDescription.problem),
+    resourceId = tostring(properties.resourceMetadata.resourceId)
+| summarize resources = count() by subscriptionId, impact, problem
+| order by resources desc
+
+// W1 Reliability - Azure Resource Graph: zone configuration of shared resources.
+// Empty zones = non-zonal; compare against the tier matrix, not a pass/fail rule.
+resources
+| where type in~ ("microsoft.network/azurefirewalls", "microsoft.network/applicationgateways", "microsoft.network/publicipaddresses")
+| extend zoneList = tostring(zones)
+| project subscriptionId, resourceGroup, name, type, location, zoneList, tier = tostring(tags["reliability-tier"])
+
+// W2 Security - Azure Resource Graph: unhealthy high-severity Defender assessments.
+securityresources
+| where type == "microsoft.security/assessments"
+| extend status = tostring(properties.status.code),
+    severity = tostring(properties.metadata.severity),
+    assessment = tostring(properties.displayName)
+| where status == "Unhealthy" and severity == "High"
+| summarize resources = count() by subscriptionId, assessment
+| order by resources desc
+
+// W2 Security - Azure Resource Graph: secure score per subscription.
+securityresources
+| where type == "microsoft.security/securescores"
+| project subscriptionId, scorePercent = todouble(properties.score.percentage)
+
+// W2 Security - Azure Resource Graph: PaaS resources with public network access enabled.
+resources
+| where tostring(properties.publicNetworkAccess) =~ "Enabled"
+| project subscriptionId, resourceGroup, name, type, archetype = tostring(tags["archetype"])
+
+// W3 Cost - Azure Resource Graph: orphaned disks and public IPs (candidates, not proof).
+resources
+| where (type =~ "microsoft.compute/disks" and tostring(properties.diskState) =~ "Unattached")
+    or (type =~ "microsoft.network/publicipaddresses" and isempty(properties.ipConfiguration) and isempty(properties.natGateway))
+| project subscriptionId, resourceGroup, name, type, location
+
+// W3 Cost - Azure Resource Graph: Advisor cost recommendations with estimated savings.
+advisorresources
+| where type == "microsoft.advisor/recommendations"
+| where tostring(properties.category) == "Cost"
+| extend savings = todouble(properties.extendedProperties.savingsAmount),
+    currency = tostring(properties.extendedProperties.savingsCurrency)
+| summarize recommendations = count(), estimatedSavings = sum(savings) by subscriptionId, currency
+
+// W4 Operational Excellence - Azure Resource Graph: who/what changed resources (about 14-day retention).
+// Compare changedBy/clientType against the approved pipeline identity.
+resourcechanges
+| extend changeTime = todatetime(properties.changeAttributes.timestamp),
+    targetId = tostring(properties.targetResourceId),
+    changeType = tostring(properties.changeType),
+    changedBy = tostring(properties.changeAttributes.changedBy),
+    clientType = tostring(properties.changeAttributes.clientType)
+| where changeTime > ago(1d)
+| summarize changes = count() by subscriptionId, clientType, changedBy, changeType
+| order by changes desc
+
+// W5 Performance - Log Analytics (Container insights): AKS scheduling and scale failures.
+KubeEvents
+| where TimeGenerated > ago(7d)
+| where Reason in ("FailedScheduling", "NotTriggerScaleUp", "FailedScaleUp")
+| summarize events = count() by ClusterName, Namespace, Reason
+| order by events desc
+
+// W5 Performance - read-only Azure CLI (not KQL), run by an approved operator/tool:
+// az quota usage list --scope /subscriptions/<subId>/providers/Microsoft.Compute/locations/<region>
+// az network vnet list-usage --resource-group <rg> --name <hubOrSpokeVnet> --output table

@@ -1,0 +1,22 @@
+{
+  "_note": "Response plans (incident filters) for the Azure Monitor incident platform. All Review mode. Filters are resource-type or title based to stay as non-overlapping as possible: match order across plans is not documented, and overlapping plans can investigate the same alert twice (AAU cost). Alerts that match no plan are not auto-investigated. Remove the auto-created 'quickstart' plan if present.",
+  "defaults": {
+    "incidentPlatform": "AzMonitor",
+    "priorities": ["Sev0", "Sev1", "Sev2", "Sev3", "Sev4"],
+    "agentMode": "Review",
+    "maxAutomatedInvestigationAttempts": 2,
+    "mergeEnabled": true,
+    "mergeWindowHours": 1,
+    "isEnabled": true
+  },
+  "responsePlans": [
+    { "name": "rp-service-health",   "handlingAgent": "platform-orchestrator", "titleContains": "ServiceHealth",  "useCase": "UC04 - Service Health incidents, maintenance, advisories and security incidents correlated with platform changes" },
+    { "name": "rp-resource-health",  "handlingAgent": "waf-reliability",      "titleContains": "ResourceHealth", "useCase": "W1 - Resource Health unavailable/degraded on shared platform resources" },
+    { "name": "rp-aks-platform",     "handlingAgent": "aks-platform",         "targetResourceType": "Microsoft.ContainerService/managedClusters", "useCase": "UC08 - AKS platform alerts (node, pod, CPU/memory, API)" },
+    { "name": "rp-ai-platform",      "handlingAgent": "ai-platform",          "targetResourceType": "Microsoft.CognitiveServices/accounts",       "useCase": "UC07 - AI throttling, latency and availability alerts" },
+    { "name": "rp-network-firewall", "handlingAgent": "network",              "targetResourceType": "Microsoft.Network/azureFirewalls",          "useCase": "UC03 - Azure Firewall health, throughput and SNAT alerts" },
+    { "name": "rp-network-gateways", "handlingAgent": "network",              "targetResourceType": "Microsoft.Network/virtualNetworkGateways",  "useCase": "UC03 - VPN/ExpressRoute gateway connectivity alerts" },
+    { "name": "rp-backup",           "handlingAgent": "resilience",           "targetResourceType": "Microsoft.RecoveryServices/vaults",         "useCase": "UC10 - Backup job failure and vault alerts" },
+    { "name": "rp-log-analytics",    "handlingAgent": "observability",        "targetResourceType": "Microsoft.OperationalInsights/workspaces",  "useCase": "UC05 - Workspace delete/key regeneration, ingestion and data-gap alerts" }
+  ]
+}

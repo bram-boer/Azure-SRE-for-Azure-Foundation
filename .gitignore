@@ -1,0 +1,10 @@
+# Local-only parameter files with real subscription, tenant and workspace IDs
+*.local.bicepparam
+# Superseded by STARTERKIT.md
+starterkit.html
+*.zip
+# Build and Office artefacts
+infra/**/*.json.bak
+*.json.compiled
+~$*
+__pycache__/
