@@ -8,7 +8,7 @@
 
 The reference agent's Bicep assigns subscription **Reader** only (check for an auto-added **Monitoring Contributor**, see demo 0), with access level Low and **Review** mode. So "solving" means:
 
-1. **Detect.** An alert arrives through a response plan, or a scheduled task runs.
+1. **Detect.** An alert arrives through a response plan, or a legacy scheduled task runs. The [event-driven trigger proposal](event-driven-triggers.md) replaces agent schedules with activity, metric/log-alert and lifecycle-event intake; the demos below still describe the legacy deployed configuration.
 2. **Investigate.** The agent correlates the Activity Log, Resource Graph `resourcechanges`, metrics, logs and knowledge files.
 3. **Explain.** It reports the cause, the impact, the WAF checklist code and the owner.
 4. **Propose.** It suggests a fix: an IaC change, a CLI command or a policy assignment.

@@ -15,6 +15,7 @@ SECTIONS = [
     ("setup", "Setup guide", "setup-guide.md"),
     ("use-cases", "Use cases", "use-cases.md"),
     ("waf", "WAF pillar use cases", "waf-pillar-use-cases.md"),
+    ("triggers", "Event-driven trigger proposal", "event-driven-triggers.md"),
     ("demo", "Demo guide", "demo-guide.md"),
     ("costs", "Costs", "costs.md"),
     ("infra", "Infrastructure guidance", "infra/README.md"),

@@ -52,7 +52,9 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 - **Model:** the `MicrosoftFoundry` provider, chosen for EU Data Boundary alignment.
 - **Hand-offs:** agent-to-agent hand-offs are **not supported in workspace mode**. The data-plane API rejects them, so `platform-orchestrator` delegates to the specialists as Task-based subagents instead.
 
-## Scheduled tasks (UTC, Review mode)
+## Legacy scheduled tasks (UTC, Review mode)
+
+**Proposed replacement:** [event-driven SRE triggers](../../event-driven-triggers.md) maps every task below to Azure Monitor alerts, Azure activities and approved lifecycle-event integrations, including latency settings, routing gaps and absence/deadline monitoring. These replacements are **not deployed**. Keep each schedule until its replacement is accepted; `Apply-DataPlane.ps1` currently re-enables all eight schedules on every apply, so implementation must persist the disabled state before cutover.
 
 | Task | Agent | Cron | Use case |
 | --- | --- | --- | --- |
@@ -65,7 +67,7 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 | `uc10-backup-assurance-weekly` | resilience | `0 7 * * 5` | UC10 |
 | `uc12-incident-to-waf-monthly` | platform-orchestrator | `0 8 1 * *` | UC12 |
 
-Event-driven use cases that still need wiring are UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), and the W4 post-deployment gate. They need **HTTP triggers** from your pipelines, or alert rules that the response plans above can match.
+Event-driven use cases that still need wiring include UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), the W4 post-deployment gate, and UC12 (confirmed incident closure). They need separately authorized **HTTP-trigger integrations** or alert rules that verified response plans can match. Log Analytics connectors do not trigger on new rows, and broad workspace/resource-type response plans must be narrowed or replaced before adding domain-specific log-alert routes.
 
 ## Deploy
 

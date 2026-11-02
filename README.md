@@ -20,6 +20,7 @@ This is an **independent reference design grounded in Microsoft guidance**, not 
 | [agent-topology.md](agent-topology.md) | When one agent serves all use cases and when to split; separate-agent versus new-use-case triggers; per-use-case placement |
 | [use-cases.md](use-cases.md) | Twelve prioritized use cases with instructions, owners, exercises, benefits, metrics, and agent placement |
 | [waf-pillar-use-cases.md](waf-pillar-use-cases.md) | One deep-dive use case per WAF pillar (W1-W5): signals, set-up, exercise, measures, and CCoE/team benefit |
+| [event-driven-triggers.md](event-driven-triggers.md) | Proposed replacements for all eight agent schedules: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates |
 | [costs.md](costs.md) | Verified EUR/USD retail snapshot, cost assumptions, exclusions, and business-case worksheet |
 | [infra\README.md](infra/README.md) | Optional AVM Bicep monitoring skeleton; deliberately not an agent/ALZ deployment |
 | [infra\sre-agent\README.md](infra/sre-agent/README.md) | **Reference deployment** of one platform agent: Bicep (agent, identity, RBAC, incident platform, connectors) plus data-plane configuration (13 custom agents, 8 Review-mode scheduled tasks, 8 response plans, knowledge) |
