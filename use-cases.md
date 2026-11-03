@@ -6,6 +6,8 @@
 
 **Execution contract:** SRE Agent investigates. Existing ALZ/vending/accelerator pipelines remain authoritative for change. Human-created change requests are sufficient for this starter kit. Automatic PR creation, pipeline triggering, cost exports, and scorecards require separately authorized integration; no such connector is deployed here.
 
+**Primary trigger model:** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven operating model](event-driven-triggers.md) maps all twelve cases, including no-data/deadline coverage. Scheduled tasks are retained only for demos or temporary fallback. The starter routes still require deployment and target-environment acceptance; log connectors provide query access, not automatic triggers.
+
 ## Prioritization and benefit map
 
 Benefits below are hypotheses to measure against a pre-pilot baseline, not product guarantees. CAF/ALZ supplies enterprise/platform governance; WAF assesses the quality of platform services as workloads and the applications consuming them.
@@ -25,7 +27,7 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 | UC11 / P2 | Platform cost and telemetry anomaly | Governance; management | Cost Optimization, Performance Efficiency | Cost attribution and optimization backlog | Isolate ingestion, scale, and agent-usage cost drivers | Combine; split only for separate FinOps budget/team |
 | UC12 / P1 | Incident-to-WAF improvement loop | Governance; platform automation | All five pillars | Repeatable evidence for governance reviews | Less manual incident narrative and runbook upkeep | Combine - runs in every agent |
 
-**Agent placement:** by default all twelve use cases run in **one platform-operations agent**, each as a custom agent, response plan, or scheduled task. Split to a separate agent only for a recorded trigger: team/on-call, permissions boundary, incident platform, model/data residency, budget, tenant, or hosting region/network. Production versus test alone is not a trigger while the agent is read-only and in Review mode. With write access or Autonomous plans, separate prod and non-prod. Details and implementation per use case: [agent-topology.md](agent-topology.md#5-per-use-case-placement).
+**Agent placement:** by default all twelve use cases run in **one platform-operations agent**, each as a custom agent with an alert response plan or approved lifecycle-event trigger. Split to a separate agent only for a recorded trigger: team/on-call, permissions boundary, incident platform, model/data residency, budget, tenant, or hosting region/network. Production versus test alone is not a trigger while the agent is read-only and in Review mode. With write access or Autonomous plans, separate prod and non-prod. Details and implementation per use case: [agent-topology.md](agent-topology.md#5-per-use-case-placement).
 
 ## UC01 - Subscription-vending failure triage
 
@@ -46,7 +48,7 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 
 ## UC02 - Vended subscription readiness and drift
 
-**Owner:** platform governance owner; security owns security exceptions. **Signal:** vending handover, periodic baseline review, or new Policy noncompliance.
+**Owner:** platform governance owner; security owns security exceptions. **Signal:** vending handover, relevant baseline configuration changes, or new Policy noncompliance; monitoring-side reconciliation covers unchanged gaps.
 
 **Set up:**
 1. Define the acceptance manifest: intended management group; policy assignments and approved exemptions; owner/cost tags; monitoring destination; budget owner; network/IPAM allocation; authorized RBAC; Defender configuration where required.
@@ -184,7 +186,7 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 
 ## UC10 - Backup and restore assurance
 
-**Owner:** platform continuity/backup owner; workload/data owner approves restore and validates data. **Signal:** failed/missing backup job, protected-item gap, or scheduled recovery exercise.
+**Owner:** platform continuity/backup owner; workload/data owner approves restore and validates data. **Signal:** backup/job failure alert, protection change, recovery-point/deadline breach, or recovery-exercise completion.
 
 **Set up:**
 1. Identify which platform components actually require backup and which are rebuilt from IaC. Register the approved RTO, RPO, data owner, region, retention, restore target, and recovery dependencies.
@@ -218,7 +220,7 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 
 ## UC12 - Incident-to-WAF improvement loop
 
-**Owner:** platform service owner accountable; CCoE curates reusable standards; responders validate findings. **Signal:** incident closure or monthly platform review.
+**Owner:** platform service owner accountable; CCoE curates reusable standards; responders validate findings. **Signal:** human-confirmed incident/finding closure. Monthly platform review consumes the accumulated evidence rather than delaying investigations.
 
 **Set up:**
 1. Define the incident record: affected service/user flow, detection, impact, UTC timeline, evidence, uncertainty, human decisions, mitigation, recovery verification, and follow-up owners.

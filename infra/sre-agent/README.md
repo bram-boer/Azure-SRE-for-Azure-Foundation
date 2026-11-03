@@ -7,10 +7,13 @@ This folder deploys **one** Azure SRE Agent for platform operations, following t
 | `main.bicep` | Subscription scope. Creates the resource group, the agent module, and **Reader** on the subscription for the agent's identities. |
 | `agent.bicep` | Creates the Log Analytics workspace, workspace-based App Insights, a user-assigned managed identity and `Microsoft.App/agents`. Sets **Azure Monitor as the incident platform** and creates the **connectors**: `azure-monitor` plus one `LogAnalytics` connector per existing workspace. Also assigns **SRE Agent Administrator** to the deployer. |
 | `main.bicepparam` | Agent name, RG, region, monthly AAU cap, model provider, incident platform and the workspaces to connect. |
+| `event-alerts.bicep`, `event-alerts.json` | Opt-in Activity Log starter rules and typed metric/log alert deployment. Requires existing human on-call action groups; rules are staged disabled by default. |
+| `event-alerts.example.bicepparam` | Copyable resource-group deployment example: Activity Log rules, a storage metric, AKS scheduling errors and an independently registered missing-heartbeat source. Replace placeholders and validate telemetry first. |
 | `dataplane\subagents.json` | 13 read-only custom agents: `platform-orchestrator` (UC04, UC12), 7 domain specialists (UC01–UC11) and 5 WAF pillar agents (W1–W5). |
 | `dataplane\scheduled-tasks.json` | 8 scheduled tasks, all in **Review** mode. |
 | `dataplane\response-plans.json` | 8 response plans (incident filters) that route Azure Monitor alerts to the right custom agent, all in **Review** mode. |
-| `dataplane\Apply-DataPlane.ps1` | Idempotent apply of the custom agents, scheduled tasks, response plans and 4 knowledge files (use cases, WAF pillars, topology, queries). |
+| `dataplane\event-response-plans.json` | 17 opt-in, title-token Review routes for W1-W5 and UC01-UC12. Each source rule must match exactly one route. |
+| `dataplane\Apply-DataPlane.ps1` | Idempotent apply of custom agents, persisted schedule flags, selected response-plan set and 5 knowledge files (use cases, WAF pillars, topology, event triggers, queries). Guards migration and explicit rollback. |
 
 ## Connectors
 
@@ -52,7 +55,9 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 - **Model:** the `MicrosoftFoundry` provider, chosen for EU Data Boundary alignment.
 - **Hand-offs:** agent-to-agent hand-offs are **not supported in workspace mode**. The data-plane API rejects them, so `platform-orchestrator` delegates to the specialists as Task-based subagents instead.
 
-## Scheduled tasks (UTC, Review mode)
+## Demo and temporary-fallback scheduled tasks (UTC, Review mode)
+
+The [event-driven SRE operating model](../../event-driven-triggers.md) is the primary approach: use Azure Monitor alerts, Azure activities and approved lifecycle-event integrations, including latency settings, routing and absence/deadline monitoring. The schedules below exist for demos and temporary fallback during event-route validation; they are not the normal operating mode. Event alert rules and routes are staged, opt-in and **have not been deployed or validated in Azure**. Each schedule has a persisted boolean `isEnabled`; retain it only while needed for a demo or until its replacement path is accepted.
 
 | Task | Agent | Cron | Use case |
 | --- | --- | --- | --- |
@@ -65,7 +70,37 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 | `uc10-backup-assurance-weekly` | resilience | `0 7 * * 5` | UC10 |
 | `uc12-incident-to-waf-monthly` | platform-orchestrator | `0 8 1 * *` | UC12 |
 
-Event-driven use cases that still need wiring are UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), and the W4 post-deployment gate. They need **HTTP triggers** from your pipelines, or alert rules that the response plans above can match.
+Event-driven use cases that still need wiring include UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), the W4 post-deployment gate, and UC12 (confirmed incident closure). They need separately authorized **HTTP-trigger integrations** or alert rules that verified response plans can match. Log Analytics connectors do not trigger on new rows, and broad workspace/resource-type response plans must be narrowed or replaced before adding domain-specific log-alert routes. These gaps are implementation/acceptance work for the primary mode, not a reason to make broad scheduled investigations the default operating model.
+
+## Event-driven deployment and cutover
+
+The starter contains **eight Activity Log rules**: security/identity changes, network changes, Resource Health, Service Health, disk lifecycle, failed capacity operations, monitoring changes and backup-protection changes. They use distinct `SRE-Wn-` / `SRE-UCnn-` tokens matching `event-response-plans.json`. Configuration changes request investigation; they are not proof of a fault. Health rules also receive recovery/update events.
+
+The starter rules are **not complete coverage for all investigation requirements**. Add service-specific metric/log rules, Policy/Defender export, cost notifications, backup job/recovery-point deadlines, independent expected-resource registries and approved lifecycle adapters using the event-driven operating model. The example heartbeat query illustrates a never-seen resource; it is not a subscription-wide inventory or collector. No HTTP adapter, Event Grid subscription, collector or cost integration is provisioned here.
+
+1. **Stage rules disabled.** In an ignored `*.local.bicepparam` copy of `main.bicepparam`, set `deployEventDrivenAlerts = true`, supply `eventActionGroupIds`, and leave `activateEventDrivenAlerts = false`. Add validated metric/log definitions to `eventMetricRules` / `eventLogRules` using the contracts in `event-alerts.bicep`. Query permissions, tables, region and alert evaluation eligibility must be proven first. Alternatively deploy the standalone module below into each approved source subscription; choose one deployment path per rule, not both.
+2. **Prepare routing.** Map existing AMBA rules and every new source rule to exactly one token. All existing broad managed plans will be disabled by `-UseEventDrivenResponsePlans`, so map their alert coverage before switching. Disable unmanaged overlapping plans (including quickstart) explicitly; the script blocks migration while potentially active unmanaged plans remain. Retain independent human on-call delivery. Pause agent incident intake during the route-set swap to avoid the brief overlap between new-plan activation and old-plan retirement.
+3. **Apply event routes.** Run the data-plane command below with `-UseEventDrivenResponsePlans`. It enables the 17 token routes in Review mode, then disables existing managed legacy routes only if preceding updates succeeded. A later apply without the event flag refuses to silently restore legacy routing. Partial API failure is reported; inspect and repair partially updated plans before resuming intake. This is not a transactional API.
+4. **Activate and prove.** Set `activateEventDrivenAlerts = true` (or `activate = true` for the standalone module) only after accepted routing/on-call checks, then restore agent intake. Keep demo/fallback schedules available only as needed while proving event coverage, including unchanged pre-existing gaps and missing/deadline evidence. Measure event-to-investigation delay and duplicates.
+5. **Retire demo/fallback schedules explicitly.** Set a task's `isEnabled` to false in `scheduled-tasks.json` (or an approved persistent file passed with `-ScheduledTasksFile`) when it is no longer needed. Apply with both `-UseEventDrivenResponsePlans` and `-ConfirmScheduleCutover`. Flags are persisted; use the same reviewed configuration file on subsequent applies.
+
+```powershell
+# Run from infra/sre-agent. Stage disabled rules in an existing approved monitoring RG.
+az deployment group what-if --resource-group <monitoring-rg> --template-file .\event-alerts.bicep --parameters .\event-alerts.local.bicepparam
+az deployment group create --resource-group <monitoring-rg> --template-file .\event-alerts.bicep --parameters .\event-alerts.local.bicepparam
+
+# After mapping existing alerts and accepting the migration gates:
+.\dataplane\Apply-DataPlane.ps1 -SubscriptionId <subscription-id> -ResourceGroup rg-platform-sreagent -AgentName sre-platform-ops -TenantId <tenant-id> -UseEventDrivenResponsePlans
+
+# Only after the selected schedules' full replacement coverage is accepted:
+.\dataplane\Apply-DataPlane.ps1 -SubscriptionId <subscription-id> -ResourceGroup rg-platform-sreagent -AgentName sre-platform-ops -TenantId <tenant-id> -UseEventDrivenResponsePlans -ConfirmScheduleCutover
+```
+
+For the standalone path, first copy `event-alerts.example.bicepparam` to `event-alerts.local.bicepparam`, replace placeholders and remove unsupported sample rules. Select each source subscription with `az account set` before deployment. This module does not create SRE connectors or extend the agent's permissions to another subscription.
+
+**Rollback:** pause agent intake, set affected schedule flags back to true, and if reverting routing run the apply script with `-RestoreLegacyResponsePlans` (not the event flag). Explicit rollback enables the eight legacy routes and disables managed token routes after successful updates. Restore legacy alert names/mappings as needed; token-only alerts may not match the legacy plans. Keep independent human alerts active throughout.
+
+**Offline checks:** `pwsh -NoProfile -File tools/test-dataplane.ps1` from the repository root checks matching, Review mode, persisted schedule flags, unmanaged-plan rejection, API-failure guards and explicit rollback. Compile `main.bicep` and both `.bicepparam` examples with the Bicep CLI. These checks do not prove delivery, query execution or incident intake in Azure.
 
 ## Deploy
 
@@ -85,5 +120,5 @@ Open the agent at `https://sre.azure.com`, check **Custom agents**, **Scheduled 
 
 ## Pause or remove
 
-- **Pause the active flow:** disable the scheduled tasks in the portal, or set `isEnabled` to false and re-apply. The always-on charge continues.
+- **Pause the active flow:** disable response plans and schedules in the portal. Persist schedule changes in `scheduled-tasks.json` and use `-ConfirmScheduleCutover` when applying disabled flags; keep the selected routing flag on subsequent applies. Disable event rules through their deployment parameters if appropriate, but preserve independent on-call monitoring. The always-on charge continues.
 - **Stop all billing:** `az group delete --name rg-platform-sreagent`. Stopping the agent does **not** stop the always-on charge. Also remove the subscription-scope Reader assignments for the deleted identities.

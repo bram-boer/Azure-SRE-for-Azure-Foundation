@@ -8,7 +8,7 @@
 |---|---|
 | **One agent per team** | The CCoE/platform team runs one **platform-operations agent** for the ALZ platform, vending, shared networking, and the platform side of the AI and AKS accelerators. |
 | **One agent, several workloads** | One agent can monitor many subscriptions, landing zones, and regions within its granted scope. Do not create an agent for each vended subscription, landing zone, or monitored region. |
-| **Use cases go inside the agent** | Implement each use case as a **custom agent** (specialist), **response plan** (which alerts and how), **scheduled task** (recurring check), plus knowledge files or skills. |
+| **Use cases go inside the agent** | Implement each use case as a **custom agent** (specialist) and event-driven **response plan** or approved lifecycle-event trigger, plus knowledge files or skills. Use broad recurring agent checks only as a demo path or temporary fallback; see the [primary event-driven operating model](event-driven-triggers.md). |
 | **Consolidate by default** | Each agent adds a fixed always-on charge of 4 AAU per agent-hour: about EUR 282.66 (France Central) to EUR 349.52 (West Europe) per month at the [retail snapshot](costs.md). Each agent also needs its own onboarding, memory, permissions, and review. |
 | **Start safe** | Begin with the Reader permission level and run mode **Review**. Run mode is set per response plan or scheduled task, so it is not a reason to split agents. **Caveat 1:** new response plans and scheduled tasks default to **Autonomous**; only the agent-level fallback defaults to Review, so set Review explicitly on each plan or task. **Caveat 2:** the Reader level is not zero-write; it always includes **Monitoring Contributor** at subscription scope. |
 
@@ -61,7 +61,7 @@ Add a use case to the existing agent when the scope stays within that agent's te
 |---|---|
 | New signal or alert type (for example vending failure, AKS node pressure, or AI throttling) | New **response plan** with a filter on severity, service, or keyword |
 | New domain expertise or tool set (network, AKS, AI, backup, cost) | New **custom agent**, with its own instructions, tools, and knowledge |
-| New recurring check or report (readiness, drift, upgrade readiness, cost) | New **scheduled task**, initially in Review mode |
+| New readiness, drift, upgrade or cost condition | Prefer a **source event or monitoring-side threshold/deadline alert**, routed to a Review-mode investigation; reconcile conditions with no native event outside the agent |
 | New runbook or reference content | **Knowledge file** or **skill** attached to the relevant custom agent |
 | New acceptance test, owner, or KPI within the same team | A new use-case record using the [use-case template](use-cases.md), with an exercise and a measure |
 | New scope (subscription, resource group, or region) | Add a **resource-group/subscription scope** to the existing identity, then run a negative access test |
@@ -82,7 +82,7 @@ flowchart TD
   q5 -->|Yes| new
   q5 -->|No| q6{Write access or Autonomous<br/>plans spanning prod and non-prod?}
   q6 -->|Yes| new
-  q6 -->|No| uc[Add use case inside existing agent:<br/>custom agent + response plan /<br/>scheduled task + knowledge]
+  q6 -->|No| uc[Add use case inside existing agent:<br/>custom agent + response plan /<br/>event trigger + knowledge]
   new --> cost[Record justification and<br/>fixed-cost approval]
 ```
 
@@ -93,17 +93,17 @@ Default: one **platform-operations agent** owned by the CCoE/platform team, assu
 | Use case | Placement | Implement inside the agent as | Separate agent only if |
 |---|---|---|---|
 | UC01 Vending failure triage | **Combine** | `vending-governance` custom agent; response plan for vending pipeline alerts | Vending is run by a separate team with its own on-call (A1) |
-| UC02 Readiness and drift | **Combine** | Same `vending-governance` custom agent; daily or weekly scheduled task | Not for environment alone while the agent is read-only and in Review mode |
+| UC02 Readiness and drift | **Combine** | Same `vending-governance` custom agent; handover/configuration events and Policy transitions | Not for environment alone while the agent is read-only and in Review mode |
 | UC03 DNS and private connectivity | **Combine** | `network` custom agent; response plan for DNS/connectivity alerts | A separate network/connectivity team with its own on-call or incident platform (A1/A3) |
 | UC04 Change-correlated incidents | **Combine** | Platform triage (orchestrator) with a hand-off to domain specialists | No: cross-domain correlation requires a shared context |
-| UC05 Monitoring blind spots | **Combine** | `observability` custom agent; weekly scheduled task | No |
-| UC06 AI landing-zone onboarding | **Combine (conditional)** | `ai-platform` custom agent; scheduled acceptance check | A separate AI platform team (A1), a different model or residency requirement (A4), or a separate security boundary (A2) |
+| UC05 Monitoring blind spots | **Combine** | `observability` custom agent; onboarding/configuration events and independent freshness alerts | No |
+| UC06 AI landing-zone onboarding | **Combine (conditional)** | `ai-platform` custom agent; deployment/preflight events and failed synthetic alerts | A separate AI platform team (A1), a different model or residency requirement (A4), or a separate security boundary (A2) |
 | UC07 AI capacity and throttling | **Combine (conditional)** | Same `ai-platform` custom agent; response plan for throttling/quota alerts | Same as UC06; keep UC06 and UC07 together in whichever agent owns the AI platform |
 | UC08 AKS platform triage | **Combine (conditional)** | `aks-platform` custom agent; response plan for AKS alerts | A dedicated AKS platform team (A1), a different private-cluster network path (A7), or a separate incident platform (A3) |
-| UC09 AKS upgrade readiness | **Combine (conditional)** | Same `aks-platform` custom agent; scheduled task before upgrade windows | Same as UC08; keep UC08 and UC09 together |
-| UC10 Backup and restore assurance | **Combine** | `resilience` custom agent; scheduled task after restore tests | Backup is run by a separate team with its own on-call (A1) |
-| UC11 Cost and telemetry anomaly | **Combine** | `finops` custom agent; weekly scheduled task | FinOps requires its own budget or cap (A5) or its own team agent (A1) |
-| UC12 Incident-to-WAF loop | **Combine** | Scheduled task across all use cases in this agent | No; run it in each agent that exists |
+| UC09 AKS upgrade readiness | **Combine (conditional)** | Same `aks-platform` custom agent; upgrade request/preflight event and regression alerts | Same as UC08; keep UC08 and UC09 together |
+| UC10 Backup and restore assurance | **Combine** | `resilience` custom agent; job/health alerts, protection changes, recovery deadlines and restore-test completion | Backup is run by a separate team with its own on-call (A1) |
+| UC11 Cost and telemetry anomaly | **Combine** | `waf-cost` handles W3 overlap with `finops` domain evidence; budget/anomaly/ingestion signals | FinOps requires its own budget or cap (A5) or its own team agent (A1) |
+| UC12 Incident-to-WAF loop | **Combine** | Confirmed incident-closure event to the orchestrator | No; run it in each agent that exists |
 | Future: write/remediation actions | **Separate or gated** | Preferably not in the read-only pilot agent | Write permissions require a separate boundary (A2). Alternatively widen per resource group after the trust gate in the [setup guide](setup-guide.md#9-operational-acceptance-measurement-and-rollback) |
 
 **Workload teams.** Application teams in vended landing zones may run their own team agent, one per team rather than one per subscription. Do not add agent creation to the subscription-vending pipeline by default. Instead, vending should hand over the scope, telemetry, and owner so that the right team agent can add the new subscription.

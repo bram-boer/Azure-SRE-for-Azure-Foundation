@@ -1,6 +1,6 @@
 # Demo guide - the starter kit in practice
 
-**Reference date: 20-10-2026.** This is a scripted demo path for the reference deployment in [infra\sre-agent\README.md](infra/sre-agent/README.md). Each demo states the **action** that triggers the agent, the **expected behaviour** and **how the agent should solve it**. The demos cover the five WAF pillars and the ALZ platform (AMBA alerts, management-group guardrails, vending readiness, AKS).
+**Reference date: 20-10-2026.** This is a scripted demo path for the reference deployment in [infra\sre-agent\README.md](infra/sre-agent/README.md). Event-driven alerts are the primary operating mode; this guide uses a mix of alert-driven demos and manual **Run now** invocations of scheduled demo tasks where an event integration is not configured. Scheduled tasks are a demo-only alternative or temporary fallback, not the normal investigation cadence. Each demo states the **action** that triggers the agent, the **expected behaviour** and **how the agent should solve it**. The demos cover the five WAF pillars and the ALZ platform (AMBA alerts, management-group guardrails, vending readiness, AKS).
 
 > Run these only in a sandbox or non-production subscription, with the agent in **Review** mode. Every incident investigation and every task run consumes Azure Agent Units (AAU) against the 2,000 AAU monthly cap. All Azure demo resources go into one throwaway resource group, `rg-sre-demo`, which you delete at the end. The one exception is demo 5, which deploys a uniquely named namespace into an existing non-production AKS cluster; deleting `rg-sre-demo` does not remove it, so clean it up separately.
 
@@ -8,7 +8,7 @@
 
 The reference agent's Bicep assigns subscription **Reader** only (check for an auto-added **Monitoring Contributor**, see demo 0), with access level Low and **Review** mode. So "solving" means:
 
-1. **Detect.** An alert arrives through a response plan, or a scheduled task runs.
+1. **Detect.** In normal operation, an event arrives through a response plan or approved lifecycle-event integration. For demos without that integration, manually run the corresponding scheduled demo task. See the [event-driven operating model](event-driven-triggers.md).
 2. **Investigate.** The agent correlates the Activity Log, Resource Graph `resourcechanges`, metrics, logs and knowledge files.
 3. **Explain.** It reports the cause, the impact, the WAF checklist code and the owner.
 4. **Propose.** It suggests a fix: an IaC change, a CLI command or a policy assignment.
@@ -54,7 +54,7 @@ Checks before the audience arrives:
 | Agent is **Running** | `https://sre.azure.com` |
 | Incident platform shows **Azure Monitor** | **Builder > Incident platform** |
 | The 8 response plans are enabled in Review mode, and there is **no** `quickstart` plan | **Incidents > Triggers + response plans** |
-| The 8 scheduled tasks exist | **Automation**. For each demo, select the task and choose **Run now**. |
+| Scheduled demo tasks exist for demonstrations without event routing | **Automation**. Manually choose **Run now** for a demo; do not rely on recurring execution as the operating model. |
 
 ---
 

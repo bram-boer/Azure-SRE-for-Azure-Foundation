@@ -46,13 +46,13 @@ Sources: [SRE API reference](https://learn.microsoft.com/en-us/azure/sre-agent/a
 
 ## 3. Create an isolated agent
 
-An authorized operator performs these steps after approvals. Creating an agent incurs cost. For an IaC route, the **reference deployment** in [infra\sre-agent\README.md](infra/sre-agent/README.md) automates the steps below and sections 6-7: one read-only agent, the Azure Monitor incident platform, connectors, custom agents, Review-mode scheduled tasks and response plans. It was proven in a sandbox subscription on 20-10-2026.
+An authorized operator performs these steps after approvals. Creating an agent incurs cost. For an IaC route, the **reference deployment** in [infra\sre-agent\README.md](infra/sre-agent/README.md) automates the steps below and sections 6-7: one read-only agent, the Azure Monitor incident platform, connectors, custom agents, Review-mode response plans and demo/temporary-fallback scheduled tasks. It was proven in a sandbox subscription on 20-10-2026.
 
 **Before creating an agent, check whether an existing team agent can host the use case.** Create a new agent only for a recorded trigger in [agent-topology.md](agent-topology.md#2-requirements-that-trigger-a-separate-agent). Fix the following at creation:
 - Region: immutable after creation.
 - Model provider and incident platform: one active platform per agent.
 
-Otherwise, add a custom agent, response plan, or scheduled task to the existing agent.
+Otherwise, add a custom agent and event-driven response plan or approved lifecycle-event integration to the existing agent. Use broad recurring agent investigations only for demos or temporary fallback; the [event-driven operating model](event-driven-triggers.md) is the primary mode.
 
 1. Verify the deployment identity has the documented creation and role-assignment permissions. The setup documentation describes Owner or Contributor plus User Access Administrator at the relevant scope. Activate required PIM eligibility only through the normal approved process; the runtime agent does **not** need those provisioning privileges.
 2. Check `Microsoft.App` provider registration using the portal or the read-only command below. Registration is a separate authorized administrative action, not something this kit performs.
@@ -156,7 +156,7 @@ The text is behavioral guidance only; step 4 must enforce the actual boundary. N
 8. In a harmless test, prove one alert matches exactly the intended plan and unrelated alerts do not. Confirm repeat alerts do not cause duplicate investigation storms, and test resolved-alert behavior without permitting unintended closure/acknowledgment.
 9. Verify the normal on-call receives the same operational signal independently. Record alert, incident/thread, resource IDs, UTC timestamps and responder review. If the product cannot establish the required boundary, disconnect intake and continue manual investigations.
 
-No scheduled task is needed for the initial pilot. If adding a daily readiness review later, explicitly set its run mode, tool scope, bounded query window, owner, and usage allocation **before enabling**. Avoid continuous polling.
+No scheduled task is needed for the initial pilot. For readiness and drift, use handover/configuration events and monitoring-side threshold or deadline alerts as the [primary event-driven mode](event-driven-triggers.md). Explicitly set Review mode, tool scope, bounded query window, owner and usage allocation before enabling any investigation route. Scheduled tasks are a demo/temporary fallback while replacement intake passes acceptance; avoid continuous agent polling.
 
 **Pass:** the right plan receives exactly the intended case, no autonomous mutation or external message occurs, normal on-call still works, and actual usage is visible. Sources: [incident platforms](https://learn.microsoft.com/en-us/azure/sre-agent/incident-platforms), [Azure Monitor intake](https://learn.microsoft.com/en-us/azure/sre-agent/azure-monitor-alerts), [response plans](https://learn.microsoft.com/en-us/azure/sre-agent/response-plan), [tool policies](https://learn.microsoft.com/en-us/azure/sre-agent/tool-access-policies), [run modes](https://learn.microsoft.com/en-us/azure/sre-agent/run-modes), [billing controls](https://learn.microsoft.com/en-us/azure/sre-agent/pricing-billing).
 

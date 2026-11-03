@@ -1,0 +1,112 @@
+{
+  "_note": "Opt-in starter alerts, deployed disabled until activateEventDrivenAlerts=true. Each operation has one primary route. Enrich configuration changes before asserting a fault. Extend with approved operations and target-specific metric/log rules; these rules are not full replacements for all legacy schedule requirements.",
+  "activityRules": [
+    {
+      "name": "SRE-W2-privileged-and-policy-change",
+      "description": "Review identity and policy control changes; resolve role, scope, exemptions and owner before classifying drift. Threat response remains with the SOC.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Succeeded",
+      "operations": [
+        "Microsoft.Authorization/roleAssignments/write",
+        "Microsoft.Authorization/roleAssignments/delete",
+        "Microsoft.Authorization/policyAssignments/write",
+        "Microsoft.Authorization/policyAssignments/delete",
+        "Microsoft.Authorization/policyExemptions/write",
+        "Microsoft.Authorization/policyExemptions/delete",
+        "Microsoft.Security/pricings/write",
+        "Microsoft.Storage/storageAccounts/write",
+        "Microsoft.KeyVault/vaults/write"
+      ]
+    },
+    {
+      "name": "SRE-W4-network-configuration-change",
+      "description": "Correlate successful network changes with approved deployment principal IDs and run IDs; inspect unknown actors and reconcile out-of-band changes through IaC.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Succeeded",
+      "operations": [
+        "Microsoft.Network/networkSecurityGroups/write",
+        "Microsoft.Network/networkSecurityGroups/securityRules/write",
+        "Microsoft.Network/networkSecurityGroups/securityRules/delete",
+        "Microsoft.Network/routeTables/write",
+        "Microsoft.Network/routeTables/routes/write",
+        "Microsoft.Network/routeTables/routes/delete",
+        "Microsoft.Network/privateDnsZones/virtualNetworkLinks/write",
+        "Microsoft.Network/privateDnsZones/virtualNetworkLinks/delete",
+        "Microsoft.Network/privateEndpoints/write",
+        "Microsoft.Network/privateEndpoints/delete"
+      ]
+    },
+    {
+      "name": "SRE-W1-resource-health",
+      "description": "Resource Health notification: inspect current and previous health, affected dependencies and tier targets; recovery events update the finding.",
+      "enabled": true,
+      "category": "ResourceHealth",
+      "status": "",
+      "operations": []
+    },
+    {
+      "name": "SRE-UC04-service-health",
+      "description": "Service Health event or update: correlate affected services, regions and platform changes. Do not equate event resolution with human incident closure.",
+      "enabled": true,
+      "category": "ServiceHealth",
+      "status": "",
+      "operations": []
+    },
+    {
+      "name": "SRE-W3-disk-lifecycle-change",
+      "description": "Check changed disks for orphan status after deployment correlation and an owner-approved grace period; delegate cost evidence to finops. Never delete or resize.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Succeeded",
+      "operations": [ "Microsoft.Compute/disks/write" ]
+    },
+    {
+      "name": "SRE-W5-capacity-operation-failed",
+      "description": "Failed AI deployment or AKS pool operation: distinguish quota, capacity, configuration and demand; delegate domain evidence to ai-platform or aks-platform.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Failed",
+      "operations": [
+        "Microsoft.CognitiveServices/accounts/deployments/write",
+        "Microsoft.ContainerService/managedClusters/agentPools/write"
+      ]
+    },
+    {
+      "name": "SRE-UC05-monitoring-configuration-change",
+      "description": "Verify affected diagnostic, collection or alerting coverage. Treat self-deployment changes as correlation evidence, not automatically a monitoring incident.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Succeeded",
+      "operations": [
+        "Microsoft.Insights/diagnosticSettings/write",
+        "Microsoft.Insights/diagnosticSettings/delete",
+        "Microsoft.Insights/dataCollectionRules/write",
+        "Microsoft.Insights/dataCollectionRules/delete",
+        "Microsoft.Insights/dataCollectionRuleAssociations/write",
+        "Microsoft.Insights/dataCollectionRuleAssociations/delete",
+        "Microsoft.Insights/metricAlerts/delete",
+        "Microsoft.Insights/scheduledQueryRules/delete",
+        "Microsoft.Insights/activityLogAlerts/delete",
+        "Microsoft.Insights/actionGroups/delete"
+      ]
+    },
+    {
+      "name": "SRE-UC10-backup-protection-change",
+      "description": "Check protection, soft-delete and immutability after vault or protected-item changes. This does not detect missing jobs or expired recovery points; add deadline log alerts.",
+      "enabled": true,
+      "category": "Administrative",
+      "status": "Succeeded",
+      "operations": [
+        "Microsoft.RecoveryServices/vaults/write",
+        "Microsoft.RecoveryServices/vaults/backupPolicies/write",
+        "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems/write",
+        "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems/delete",
+        "Microsoft.DataProtection/backupVaults/write",
+        "Microsoft.DataProtection/backupVaults/backupInstances/write",
+        "Microsoft.DataProtection/backupVaults/backupInstances/delete"
+      ]
+    }
+  ]
+}
