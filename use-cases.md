@@ -6,7 +6,7 @@
 
 **Execution contract:** SRE Agent investigates. Existing ALZ/vending/accelerator pipelines remain authoritative for change. Human-created change requests are sufficient for this starter kit. Automatic PR creation, pipeline triggering, cost exports, and scorecards require separately authorized integration; no such connector is deployed here.
 
-**Proposed trigger model (02-11-2026):** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven trigger proposal](event-driven-triggers.md) maps all twelve cases and replaces all eight legacy schedules, including no-data/deadline coverage. It is not deployed; log connectors provide query access, not automatic triggers.
+**Primary trigger model:** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven operating model](event-driven-triggers.md) maps all twelve cases, including no-data/deadline coverage. Scheduled tasks are retained only for demos or temporary fallback. The starter routes still require deployment and target-environment acceptance; log connectors provide query access, not automatic triggers.
 
 ## Prioritization and benefit map
 

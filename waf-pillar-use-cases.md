@@ -13,7 +13,7 @@ Each use case maps to the official WAF checklist codes. Each also reuses the [co
 - The agent turns their signals into **recurring, evidence-backed, owner-routed findings** for each landing zone.
 - The CCoE uses those findings in its governance cadence.
 
-All five use cases start **read-only, with every response plan and HTTP-triggered investigation explicitly set to Review**. New tasks and plans default to Autonomous. The [event-driven trigger proposal](event-driven-triggers.md) replaces the legacy agent schedules with activity, metric/log-alert and lifecycle-event intake; it is not deployed yet.
+All five use cases start **read-only, with every response plan and HTTP-triggered investigation explicitly set to Review**. New tasks and plans default to Autonomous. Event-driven activity, metric/log-alert and lifecycle-event intake is the primary operating model; scheduled investigations are an alternative for demos or temporary fallback. The staged routes require target-environment acceptance before activation.
 
 ## Overview
 
@@ -62,7 +62,7 @@ All five use cases start **read-only, with every response plan and HTTP-triggere
    - the evidence
    - a recommended IaC change
    - the owner
-4. **Propose event-driven Review-mode investigations.** Route Resource Health "Unavailable/Degraded", relevant Service Health alerts, and tier/redundancy configuration changes to this agent. Monitor restore-evidence deadlines independently. Advisor findings without supported change notifications need monitoring-side snapshot comparison; see the [trigger proposal](event-driven-triggers.md).
+4. **Use event-driven Review-mode investigations.** Route Resource Health "Unavailable/Degraded", relevant Service Health alerts, and tier/redundancy configuration changes to this agent. Monitor restore-evidence deadlines independently. Advisor findings without supported change notifications need monitoring-side snapshot comparison; see the [event-driven operating model](event-driven-triggers.md).
 5. **Route the output** as a reliability risk register entry per landing zone. Changes go through the ALZ/AKS IaC pipeline. **Fault injection** (RE:08) is out of scope for the agent. Run it with [Azure Chaos Studio](https://learn.microsoft.com/en-us/azure/chaos-studio/chaos-studio-overview) in an approved environment, and let the agent analyze the results.
 
 **Example prompt:** "For the subscriptions in scope, list shared platform resources whose zone or instance configuration does not meet the tier matrix for their `reliability-tier` tag. Add open HighAvailability Advisor recommendations, and landing zones with no restore test in the required interval. For each gap, state the failure mode, evidence, owner, and the IaC change. Do not modify resources."
@@ -98,7 +98,7 @@ The agent **triages posture**; it does not hunt threats.
 **Set up:**
 1. **Capture the baseline** as a knowledge file: per archetype (corp, online, AI, AKS), the required policy initiatives, network exposure rules, privileged-role rules (PIM-only, no standing Owner), and the Defender plans expected.
 2. **Create the `waf-security` custom agent.** Its instruction: classify each finding as exposure, drift, identity, or hardening. Map it to the SE code, the archetype rule, the evidence, and the owner. Mark as "accepted exception" only when an exemption with an expiry date exists.
-3. **Propose Review-mode investigations on security changes.** Use privileged role-assignment and exposure-related Activity Log events, relevant Policy noncompliance transitions, and high-severity Defender *recommendation* changes through an approved export/workflow. The [trigger proposal](event-driven-triggers.md) separates native alerts from integrations still needed. Do **not** route Defender *security alerts* (threats) to this agent; they belong in the SOC process or SIEM.
+3. **Use Review-mode investigations on security changes.** Use privileged role-assignment and exposure-related Activity Log events, relevant Policy noncompliance transitions, and high-severity Defender *recommendation* changes through an approved export/workflow. The [event-driven operating model](event-driven-triggers.md) separates native alerts from integrations still needed. Do **not** route Defender *security alerts* (threats) to this agent; they belong in the SOC process or SIEM.
 4. **Apply guardrails:**
    - Deny write tools for this custom agent through tool access policies.
    - Never grant, remove, or exempt access.
@@ -142,7 +142,7 @@ The agent **triages posture**; it does not hunt threats.
 1. **Make vending create a budget and alert** for every subscription, with the owner and cost-center tags (CO:04). This use case depends on that baseline.
 2. **Give the agent read-only cost evidence:** Cost Management Reader, or a scheduled cost export, plus Reader for Resource Graph. Confirm the agent's tool path can read cost data before relying on it.
 3. **Create the `waf-cost` custom agent.** Its instruction: for anomalies, explain the driver (meter, resource, change, or volume) with evidence. For waste, list candidates with estimated monthly savings in **EUR**, the risk of removal, and the owner. Never delete; propose only.
-4. **Propose Review-mode intake** for supported budget notifications, cost anomalies, ingestion deviations and resource lifecycle changes. Use an approved adapter where a notification is not a Monitor incident. Reconcile unchanged waste/Advisor findings outside the agent; investigate only new or changed findings. Billing refresh still limits cost detection speed; see the [trigger proposal](event-driven-triggers.md).
+4. **Use Review-mode intake** for supported budget notifications, cost anomalies, ingestion deviations and resource lifecycle changes. Use an approved adapter where a notification is not a Monitor incident. Reconcile unchanged waste/Advisor findings outside the agent; investigate only new or changed findings. Billing refresh still limits cost detection speed; see the [event-driven operating model](event-driven-triggers.md).
 5. **Feed approved findings** into the FinOps backlog. Removal or resizing happens through IaC or the owner after confirmation. Non-prod schedule changes (CO:08) need the environment owner's agreement.
 
 **Example prompt:** "For the anomaly alert on subscription X, identify the meters and resources responsible for the increase compared with the previous 14 days, and correlate it with changes and deployments. Then list orphaned resources and open Advisor Cost recommendations in scope, with estimated monthly savings in EUR, removal risk, and owner. Do not delete or resize anything."
@@ -216,7 +216,7 @@ At platform level, performance often fails on **limits**, not CPU.
 **Set up:**
 1. **Write a capacity plan** as a knowledge file (PE:02). Include the expected landing zones per quarter, the AKS node growth, the AI model and region plan, the IP address plan, and the headroom threshold that triggers action (for example 70% warning, 85% critical).
 2. **Create the `waf-performance` custom agent.** Its instruction: for each limit, report usage, threshold, trend, projected exhaustion date, and owner. Distinguish **quota** from **capacity** from **throttling** from **misconfiguration** (as in UC07/UC08).
-3. **Propose Review-mode investigations on headroom thresholds, AI 429s and AKS scale failures**, plus vending/deployment preflight events. Use native metrics where available; quotas/subnet usage without native telemetry need an approved collector and freshness alert. Keep retained samples for forecasting. Delegate from existing AI/AKS routes rather than investigating the same alert twice; see the [trigger proposal](event-driven-triggers.md).
+3. **Use Review-mode investigations on headroom thresholds, AI 429s and AKS scale failures**, plus vending/deployment preflight events. Use native metrics where available; quotas/subnet usage without native telemetry need an approved collector and freshness alert. Keep retained samples for forecasting. Delegate from existing AI/AKS routes rather than investigating the same alert twice; see the [event-driven operating model](event-driven-triggers.md).
 4. **Output** a capacity request (quota increase, new subnet range, scale-unit change) through the normal process. The agent never files support or quota requests itself.
 5. **Each quarter, compare** the forecast with actuals, and update the capacity plan and vending intake.
 

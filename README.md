@@ -20,11 +20,11 @@ This is an **independent reference design grounded in Microsoft guidance**, not 
 | [agent-topology.md](agent-topology.md) | When one agent serves all use cases and when to split; separate-agent versus new-use-case triggers; per-use-case placement |
 | [use-cases.md](use-cases.md) | Twelve prioritized use cases with instructions, owners, exercises, benefits, metrics, and agent placement |
 | [waf-pillar-use-cases.md](waf-pillar-use-cases.md) | One deep-dive use case per WAF pillar (W1-W5): signals, set-up, exercise, measures, and CCoE/team benefit |
-| [event-driven-triggers.md](event-driven-triggers.md) | Proposed replacements for all eight agent schedules: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates |
+| [event-driven-triggers.md](event-driven-triggers.md) | Primary event-driven operating model: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates. Scheduled tasks are a demo/temporary fallback |
 | [costs.md](costs.md) | Verified EUR/USD retail snapshot, cost assumptions, exclusions, and business-case worksheet |
 | [infra\README.md](infra/README.md) | Optional AVM Bicep monitoring skeleton; deliberately not an agent/ALZ deployment |
-| [infra\sre-agent\README.md](infra/sre-agent/README.md) | **Reference deployment** of one platform agent: Bicep, connectors, 13 custom agents, 8 legacy Review-mode schedules and 8 legacy plans; opt-in activity/metric/log alerts, 17 event routes and guarded schedule cutover |
-| [demo-guide.md](demo-guide.md) | Scripted demo path (demos 0-9): trigger actions, expected agent behaviour and proposed fixes for ALZ (AMBA, guardrails, vending, AKS) and the five WAF pillars |
+| [infra\sre-agent\README.md](infra/sre-agent/README.md) | **Reference deployment** of one platform agent: Bicep, connectors, 13 custom agents, staged event alerts, 17 event routes and guarded cutover; scheduled tasks support demos and temporary fallback |
+| [demo-guide.md](demo-guide.md) | Scripted demo path (demos 0-9): event triggers, optional scheduled-task fallbacks, expected agent behaviour and fixes for ALZ (AMBA, guardrails, vending, AKS) and the five WAF pillars |
 | [queries\starter-queries.kql](queries/starter-queries.kql) | Bounded investigation examples, with Log Analytics versus Resource Graph clearly separated |
 | [research-sre-agent.md](research-sre-agent.md) | Product capability/source evidence and documentation ambiguities |
 | [research-foundations.md](research-foundations.md) | CAF/ALZ/vending/AI/AKS first-party evidence |
@@ -91,7 +91,7 @@ flowchart TB
   monitor --> oncall
 ```
 
-**Design decisions:** preserve the ALZ management-plane hierarchy; do not create a new management group solely for the agent. Place the agent and operational integrations in an approved management/platform subscription and resource group, subject to current service support. **Agent topology:** use **one agent per operating team, with use cases inside it**. Typically this is one platform-operations agent for UC01-UC12, implemented through custom agents, response plans, and scheduled tasks. Create a separate agent only when one of these must differ:
+**Design decisions:** preserve the ALZ management-plane hierarchy; do not create a new management group solely for the agent. Place the agent and operational integrations in an approved management/platform subscription and resource group, subject to current service support. **Agent topology:** use **one agent per operating team, with use cases inside it**. Typically this is one platform-operations agent for UC01-UC12, implemented through custom agents, event-driven response plans and approved lifecycle-event integrations. Scheduled tasks are an alternative for demos or temporary fallback, not the normal operating mode. Create a separate agent only when one of these must differ:
 - team/on-call
 - permissions or security boundary
 - incident platform

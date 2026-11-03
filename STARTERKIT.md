@@ -9,7 +9,7 @@
 - [Setup guide](#setup) (source: [`setup-guide.md`](setup-guide.md))
 - [Use cases](#use-cases) (source: [`use-cases.md`](use-cases.md))
 - [WAF pillar use cases](#waf) (source: [`waf-pillar-use-cases.md`](waf-pillar-use-cases.md))
-- [Event-driven trigger proposal](#triggers) (source: [`event-driven-triggers.md`](event-driven-triggers.md))
+- [Event-driven operating model](#triggers) (source: [`event-driven-triggers.md`](event-driven-triggers.md))
 - [Demo guide](#demo) (source: [`demo-guide.md`](demo-guide.md))
 - [Costs](#costs) (source: [`costs.md`](costs.md))
 - [Infrastructure guidance](#infra) (source: [`infra/README.md`](infra/README.md))
@@ -42,11 +42,11 @@ This is an **independent reference design grounded in Microsoft guidance**, not 
 | [agent-topology.md](#topology) | When one agent serves all use cases and when to split; separate-agent versus new-use-case triggers; per-use-case placement |
 | [use-cases.md](#use-cases) | Twelve prioritized use cases with instructions, owners, exercises, benefits, metrics, and agent placement |
 | [waf-pillar-use-cases.md](#waf) | One deep-dive use case per WAF pillar (W1-W5): signals, set-up, exercise, measures, and CCoE/team benefit |
-| [event-driven-triggers.md](#triggers) | Proposed replacements for all eight agent schedules: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates |
+| [event-driven-triggers.md](#triggers) | Primary event-driven operating model: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates. Scheduled tasks are a demo/temporary fallback |
 | [costs.md](#costs) | Verified EUR/USD retail snapshot, cost assumptions, exclusions, and business-case worksheet |
 | [infra\README.md](#infra) | Optional AVM Bicep monitoring skeleton; deliberately not an agent/ALZ deployment |
-| [infra\sre-agent\README.md](#deploy) | **Reference deployment** of one platform agent: Bicep, connectors, 13 custom agents, 8 legacy Review-mode schedules and 8 legacy plans; opt-in activity/metric/log alerts, 17 event routes and guarded schedule cutover |
-| [demo-guide.md](#demo) | Scripted demo path (demos 0-9): trigger actions, expected agent behaviour and proposed fixes for ALZ (AMBA, guardrails, vending, AKS) and the five WAF pillars |
+| [infra\sre-agent\README.md](#deploy) | **Reference deployment** of one platform agent: Bicep, connectors, 13 custom agents, staged event alerts, 17 event routes and guarded cutover; scheduled tasks support demos and temporary fallback |
+| [demo-guide.md](#demo) | Scripted demo path (demos 0-9): event triggers, optional scheduled-task fallbacks, expected agent behaviour and fixes for ALZ (AMBA, guardrails, vending, AKS) and the five WAF pillars |
 | [queries\starter-queries.kql](queries/starter-queries.kql) | Bounded investigation examples, with Log Analytics versus Resource Graph clearly separated |
 | [research-sre-agent.md](research-sre-agent.md) | Product capability/source evidence and documentation ambiguities |
 | [research-foundations.md](research-foundations.md) | CAF/ALZ/vending/AI/AKS first-party evidence |
@@ -113,7 +113,7 @@ flowchart TB
   monitor --> oncall
 ```
 
-**Design decisions:** preserve the ALZ management-plane hierarchy; do not create a new management group solely for the agent. Place the agent and operational integrations in an approved management/platform subscription and resource group, subject to current service support. **Agent topology:** use **one agent per operating team, with use cases inside it**. Typically this is one platform-operations agent for UC01-UC12, implemented through custom agents, response plans, and scheduled tasks. Create a separate agent only when one of these must differ:
+**Design decisions:** preserve the ALZ management-plane hierarchy; do not create a new management group solely for the agent. Place the agent and operational integrations in an approved management/platform subscription and resource group, subject to current service support. **Agent topology:** use **one agent per operating team, with use cases inside it**. Typically this is one platform-operations agent for UC01-UC12, implemented through custom agents, event-driven response plans and approved lifecycle-event integrations. Scheduled tasks are an alternative for demos or temporary fallback, not the normal operating mode. Create a separate agent only when one of these must differ:
 - team/on-call
 - permissions or security boundary
 - incident platform
@@ -204,7 +204,7 @@ This is an independent starter kit, not an official Microsoft product.
 |---|---|
 | **One agent per team** | The CCoE/platform team runs one **platform-operations agent** for the ALZ platform, vending, shared networking, and the platform side of the AI and AKS accelerators. |
 | **One agent, several workloads** | One agent can monitor many subscriptions, landing zones, and regions within its granted scope. Do not create an agent for each vended subscription, landing zone, or monitored region. |
-| **Use cases go inside the agent** | Implement each use case as a **custom agent** (specialist) and **response plan** or approved lifecycle-event trigger, plus knowledge files or skills. Prefer the [event-driven trigger proposal](#triggers) over broad recurring agent checks; legacy schedules remain until replacement intake is proven. |
+| **Use cases go inside the agent** | Implement each use case as a **custom agent** (specialist) and event-driven **response plan** or approved lifecycle-event trigger, plus knowledge files or skills. Use broad recurring agent checks only as a demo path or temporary fallback; see the [primary event-driven operating model](#triggers). |
 | **Consolidate by default** | Each agent adds a fixed always-on charge of 4 AAU per agent-hour: about EUR 282.66 (France Central) to EUR 349.52 (West Europe) per month at the [retail snapshot](#costs). Each agent also needs its own onboarding, memory, permissions, and review. |
 | **Start safe** | Begin with the Reader permission level and run mode **Review**. Run mode is set per response plan or scheduled task, so it is not a reason to split agents. **Caveat 1:** new response plans and scheduled tasks default to **Autonomous**; only the agent-level fallback defaults to Review, so set Review explicitly on each plan or task. **Caveat 2:** the Reader level is not zero-write; it always includes **Monitoring Contributor** at subscription scope. |
 
@@ -381,13 +381,13 @@ Sources: [SRE API reference](https://learn.microsoft.com/en-us/azure/sre-agent/a
 
 ### 3. Create an isolated agent
 
-An authorized operator performs these steps after approvals. Creating an agent incurs cost. For an IaC route, the **reference deployment** in [infra\sre-agent\README.md](#deploy) automates the steps below and sections 6-7: one read-only agent, the Azure Monitor incident platform, connectors, custom agents, Review-mode scheduled tasks and response plans. It was proven in a sandbox subscription on 20-10-2026.
+An authorized operator performs these steps after approvals. Creating an agent incurs cost. For an IaC route, the **reference deployment** in [infra\sre-agent\README.md](#deploy) automates the steps below and sections 6-7: one read-only agent, the Azure Monitor incident platform, connectors, custom agents, Review-mode response plans and demo/temporary-fallback scheduled tasks. It was proven in a sandbox subscription on 20-10-2026.
 
 **Before creating an agent, check whether an existing team agent can host the use case.** Create a new agent only for a recorded trigger in [agent-topology.md](#2-requirements-that-trigger-a-separate-agent). Fix the following at creation:
 - Region: immutable after creation.
 - Model provider and incident platform: one active platform per agent.
 
-Otherwise, add a custom agent and response plan or approved event-trigger integration to the existing agent. Prefer the [event-driven trigger proposal](#triggers) over broad recurring agent investigations.
+Otherwise, add a custom agent and event-driven response plan or approved lifecycle-event integration to the existing agent. Use broad recurring agent investigations only for demos or temporary fallback; the [event-driven operating model](#triggers) is the primary mode.
 
 1. Verify the deployment identity has the documented creation and role-assignment permissions. The setup documentation describes Owner or Contributor plus User Access Administrator at the relevant scope. Activate required PIM eligibility only through the normal approved process; the runtime agent does **not** need those provisioning privileges.
 2. Check `Microsoft.App` provider registration using the portal or the read-only command below. Registration is a separate authorized administrative action, not something this kit performs.
@@ -491,7 +491,7 @@ The text is behavioral guidance only; step 4 must enforce the actual boundary. N
 8. In a harmless test, prove one alert matches exactly the intended plan and unrelated alerts do not. Confirm repeat alerts do not cause duplicate investigation storms, and test resolved-alert behavior without permitting unintended closure/acknowledgment.
 9. Verify the normal on-call receives the same operational signal independently. Record alert, incident/thread, resource IDs, UTC timestamps and responder review. If the product cannot establish the required boundary, disconnect intake and continue manual investigations.
 
-No scheduled task is needed for the initial pilot. For readiness and drift, prefer handover/configuration events and monitoring-side threshold or deadline alerts using the [event-driven trigger proposal](#triggers). Explicitly set Review mode, tool scope, bounded query window, owner and usage allocation before enabling any investigation route. Legacy schedules remain until replacement intake passes acceptance; avoid continuous agent polling.
+No scheduled task is needed for the initial pilot. For readiness and drift, use handover/configuration events and monitoring-side threshold or deadline alerts as the [primary event-driven mode](#triggers). Explicitly set Review mode, tool scope, bounded query window, owner and usage allocation before enabling any investigation route. Scheduled tasks are a demo/temporary fallback while replacement intake passes acceptance; avoid continuous agent polling.
 
 **Pass:** the right plan receives exactly the intended case, no autonomous mutation or external message occurs, normal on-call still works, and actual usage is visible. Sources: [incident platforms](https://learn.microsoft.com/en-us/azure/sre-agent/incident-platforms), [Azure Monitor intake](https://learn.microsoft.com/en-us/azure/sre-agent/azure-monitor-alerts), [response plans](https://learn.microsoft.com/en-us/azure/sre-agent/response-plan), [tool policies](https://learn.microsoft.com/en-us/azure/sre-agent/tool-access-policies), [run modes](https://learn.microsoft.com/en-us/azure/sre-agent/run-modes), [billing controls](https://learn.microsoft.com/en-us/azure/sre-agent/pricing-billing).
 
@@ -563,7 +563,7 @@ Set the active-flow allocation and usage review cadence before automation; see [
 
 **Execution contract:** SRE Agent investigates. Existing ALZ/vending/accelerator pipelines remain authoritative for change. Human-created change requests are sufficient for this starter kit. Automatic PR creation, pipeline triggering, cost exports, and scorecards require separately authorized integration; no such connector is deployed here.
 
-**Proposed trigger model (02-11-2026):** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven trigger proposal](#triggers) maps all twelve cases and replaces all eight legacy schedules, including no-data/deadline coverage. It is not deployed; log connectors provide query access, not automatic triggers.
+**Primary trigger model:** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven operating model](#triggers) maps all twelve cases, including no-data/deadline coverage. Scheduled tasks are retained only for demos or temporary fallback. The starter routes still require deployment and target-environment acceptance; log connectors provide query access, not automatic triggers.
 
 ### Prioritization and benefit map
 
@@ -813,7 +813,7 @@ Each use case maps to the official WAF checklist codes. Each also reuses the [co
 - The agent turns their signals into **recurring, evidence-backed, owner-routed findings** for each landing zone.
 - The CCoE uses those findings in its governance cadence.
 
-All five use cases start **read-only, with every response plan and HTTP-triggered investigation explicitly set to Review**. New tasks and plans default to Autonomous. The [event-driven trigger proposal](#triggers) replaces the legacy agent schedules with activity, metric/log-alert and lifecycle-event intake; it is not deployed yet.
+All five use cases start **read-only, with every response plan and HTTP-triggered investigation explicitly set to Review**. New tasks and plans default to Autonomous. Event-driven activity, metric/log-alert and lifecycle-event intake is the primary operating model; scheduled investigations are an alternative for demos or temporary fallback. The staged routes require target-environment acceptance before activation.
 
 ### Overview
 
@@ -862,7 +862,7 @@ All five use cases start **read-only, with every response plan and HTTP-triggere
    - the evidence
    - a recommended IaC change
    - the owner
-4. **Propose event-driven Review-mode investigations.** Route Resource Health "Unavailable/Degraded", relevant Service Health alerts, and tier/redundancy configuration changes to this agent. Monitor restore-evidence deadlines independently. Advisor findings without supported change notifications need monitoring-side snapshot comparison; see the [trigger proposal](#triggers).
+4. **Use event-driven Review-mode investigations.** Route Resource Health "Unavailable/Degraded", relevant Service Health alerts, and tier/redundancy configuration changes to this agent. Monitor restore-evidence deadlines independently. Advisor findings without supported change notifications need monitoring-side snapshot comparison; see the [event-driven operating model](#triggers).
 5. **Route the output** as a reliability risk register entry per landing zone. Changes go through the ALZ/AKS IaC pipeline. **Fault injection** (RE:08) is out of scope for the agent. Run it with [Azure Chaos Studio](https://learn.microsoft.com/en-us/azure/chaos-studio/chaos-studio-overview) in an approved environment, and let the agent analyze the results.
 
 **Example prompt:** "For the subscriptions in scope, list shared platform resources whose zone or instance configuration does not meet the tier matrix for their `reliability-tier` tag. Add open HighAvailability Advisor recommendations, and landing zones with no restore test in the required interval. For each gap, state the failure mode, evidence, owner, and the IaC change. Do not modify resources."
@@ -898,7 +898,7 @@ The agent **triages posture**; it does not hunt threats.
 **Set up:**
 1. **Capture the baseline** as a knowledge file: per archetype (corp, online, AI, AKS), the required policy initiatives, network exposure rules, privileged-role rules (PIM-only, no standing Owner), and the Defender plans expected.
 2. **Create the `waf-security` custom agent.** Its instruction: classify each finding as exposure, drift, identity, or hardening. Map it to the SE code, the archetype rule, the evidence, and the owner. Mark as "accepted exception" only when an exemption with an expiry date exists.
-3. **Propose Review-mode investigations on security changes.** Use privileged role-assignment and exposure-related Activity Log events, relevant Policy noncompliance transitions, and high-severity Defender *recommendation* changes through an approved export/workflow. The [trigger proposal](#triggers) separates native alerts from integrations still needed. Do **not** route Defender *security alerts* (threats) to this agent; they belong in the SOC process or SIEM.
+3. **Use Review-mode investigations on security changes.** Use privileged role-assignment and exposure-related Activity Log events, relevant Policy noncompliance transitions, and high-severity Defender *recommendation* changes through an approved export/workflow. The [event-driven operating model](#triggers) separates native alerts from integrations still needed. Do **not** route Defender *security alerts* (threats) to this agent; they belong in the SOC process or SIEM.
 4. **Apply guardrails:**
    - Deny write tools for this custom agent through tool access policies.
    - Never grant, remove, or exempt access.
@@ -942,7 +942,7 @@ The agent **triages posture**; it does not hunt threats.
 1. **Make vending create a budget and alert** for every subscription, with the owner and cost-center tags (CO:04). This use case depends on that baseline.
 2. **Give the agent read-only cost evidence:** Cost Management Reader, or a scheduled cost export, plus Reader for Resource Graph. Confirm the agent's tool path can read cost data before relying on it.
 3. **Create the `waf-cost` custom agent.** Its instruction: for anomalies, explain the driver (meter, resource, change, or volume) with evidence. For waste, list candidates with estimated monthly savings in **EUR**, the risk of removal, and the owner. Never delete; propose only.
-4. **Propose Review-mode intake** for supported budget notifications, cost anomalies, ingestion deviations and resource lifecycle changes. Use an approved adapter where a notification is not a Monitor incident. Reconcile unchanged waste/Advisor findings outside the agent; investigate only new or changed findings. Billing refresh still limits cost detection speed; see the [trigger proposal](#triggers).
+4. **Use Review-mode intake** for supported budget notifications, cost anomalies, ingestion deviations and resource lifecycle changes. Use an approved adapter where a notification is not a Monitor incident. Reconcile unchanged waste/Advisor findings outside the agent; investigate only new or changed findings. Billing refresh still limits cost detection speed; see the [event-driven operating model](#triggers).
 5. **Feed approved findings** into the FinOps backlog. Removal or resizing happens through IaC or the owner after confirmation. Non-prod schedule changes (CO:08) need the environment owner's agreement.
 
 **Example prompt:** "For the anomaly alert on subscription X, identify the meters and resources responsible for the increase compared with the previous 14 days, and correlate it with changes and deployments. Then list orphaned resources and open Advisor Cost recommendations in scope, with estimated monthly savings in EUR, removal risk, and owner. Do not delete or resize anything."
@@ -1016,7 +1016,7 @@ At platform level, performance often fails on **limits**, not CPU.
 **Set up:**
 1. **Write a capacity plan** as a knowledge file (PE:02). Include the expected landing zones per quarter, the AKS node growth, the AI model and region plan, the IP address plan, and the headroom threshold that triggers action (for example 70% warning, 85% critical).
 2. **Create the `waf-performance` custom agent.** Its instruction: for each limit, report usage, threshold, trend, projected exhaustion date, and owner. Distinguish **quota** from **capacity** from **throttling** from **misconfiguration** (as in UC07/UC08).
-3. **Propose Review-mode investigations on headroom thresholds, AI 429s and AKS scale failures**, plus vending/deployment preflight events. Use native metrics where available; quotas/subnet usage without native telemetry need an approved collector and freshness alert. Keep retained samples for forecasting. Delegate from existing AI/AKS routes rather than investigating the same alert twice; see the [trigger proposal](#triggers).
+3. **Use Review-mode investigations on headroom thresholds, AI 429s and AKS scale failures**, plus vending/deployment preflight events. Use native metrics where available; quotas/subnet usage without native telemetry need an approved collector and freshness alert. Keep retained samples for forecasting. Delegate from existing AI/AKS routes rather than investigating the same alert twice; see the [event-driven operating model](#triggers).
 4. **Output** a capacity request (quota increase, new subnet range, scale-unit change) through the normal process. The agent never files support or quota requests itself.
 5. **Each quarter, compare** the forecast with actuals, and update the capacity plan and vending intake.
 
@@ -1046,15 +1046,15 @@ At platform level, performance often fails on **limits**, not CPU.
 
 <a id="triggers"></a>
 
-## Event-driven SRE trigger proposal
+## Event-driven SRE triggers
 
-**Proposal date: 02-11-2026. Status: design with opt-in starter deployment code, not deployed.** Replace daily/weekly/monthly agent investigations with signal-driven investigations. Keep every response plan and HTTP-triggered investigation explicitly in **Review** mode, scoped to approved resources. Existing IaC pipelines and human on-call remain authoritative.
+**Primary operating model.** Investigate from Azure Monitor alerts, relevant Azure activities, and approved pipeline or incident lifecycle events instead of waiting for broad daily, weekly, or monthly agent investigations. Keep every response plan and HTTP-triggered investigation explicitly in **Review** mode, scoped to approved resources. Existing IaC pipelines and human on-call remain authoritative. Scheduled tasks are retained only as a demo path or temporary fallback while each event route is validated.
 
-The eight schedules in [`scheduled-tasks.json`](infra/sre-agent/dataplane/scheduled-tasks.json) remain the legacy configuration until their replacements pass the migration gates below. The [deployment code and cutover instructions](#event-driven-deployment-and-cutover) provide eight opt-in Activity Log rules, typed metric/log rules with examples, seventeen Review-mode token routes, and persisted schedule flags. Existing human on-call action groups are required; Event Grid subscriptions, adapters, collectors and HTTP triggers still require separate implementation. Do not disable existing detection before proving its replacement.
+The [deployment code and cutover instructions](#event-driven-deployment-and-cutover) provide eight staged Activity Log rules, typed metric/log rule examples, seventeen Review-mode token routes, and persisted schedule flags. These alert rules and routes require deliberate deployment and target-environment acceptance; they are not active by default. Existing human on-call action groups are required; Event Grid subscriptions, adapters, collectors and HTTP triggers still require separate implementation. Keep the demo schedules available during validation, but do not use them as the normal production investigation cadence.
 
 ### 1. Intake architecture and connector boundaries
 
-| Existing source / connector | Proposed role | What must be added or verified |
+| Existing source / connector | Primary event-driven role | What must be added or verified |
 |---|---|---|
 | `azure-monitor` (`AzureMonitor`), with `AzMonitor` incident platform | Intake of fired alerts; response plans select the investigating custom agent | Alert rules, notification/on-call action groups, response-plan coverage, and actual agent intake latency. The configured seven-day look-back is not an evaluation or delivery interval. |
 | `law-<workspace>` (`LogAnalytics`) | Query the ALZ management and AKS workspaces for incident evidence | Relevant diagnostic settings, tables, query permissions, and Azure Monitor scheduled-query alerts. A log connector is not a subscription to new rows. |
@@ -1072,29 +1072,29 @@ Prefer the shortest supported route:
 
 #### Reaction-time settings
 
-These are initial tuning proposals, not Azure latency guarantees or service-wide supported defaults:
+These are example initial tuning values, not Azure latency guarantees or service-wide supported defaults:
 
 | Signal | Proposed evaluation / delivery policy | Limitation |
 |---|---|---|
 | Management changes, health, failed pipeline stages | Process each matching terminal event as soon as delivered; do not wait for workspace ingestion if the native event has enough context | Activity Log, Event Grid, and incident-connector delivery add latency; record it rather than promising seconds |
-| Service metrics, AI 429s, connectivity, AKS health | Prefer metrics/Prometheus; propose one-minute evaluation where supported, with a service-specific 1-5 minute breach window | Metric availability and minimum windows vary; avoid making every transient sample an investigation |
-| Log-only errors, security posture, ingestion signals | Propose one-minute scheduled-query evaluation only for eligible rules/queries; otherwise use the shortest supported interval, usually five minutes as a starting proposal | Ingestion lag, query restrictions, window size, and late records affect detection; not all tables or query shapes support one minute |
+| Service metrics, AI 429s, connectivity, AKS health | Prefer metrics/Prometheus; use one-minute evaluation where supported, with a service-specific 1-5 minute breach window | Metric availability and minimum windows vary; avoid making every transient sample an investigation |
+| Log-only errors, security posture, ingestion signals | Use one-minute scheduled-query evaluation only for eligible rules/queries; otherwise use the shortest supported interval, usually five minutes as an initial setting | Ingestion lag, query restrictions, window size, and late records affect detection; not all tables or query shapes support one minute |
 | No-data, missed backup, expiring recovery evidence | Compare an expected-resource/deadline registry against actual observations at an owner-approved interval | Configure per-resource grace periods and onboarding suppression; no rows is not evidence that collection is healthy |
 | Cost, Advisor, Policy assessments | Investigate on the first available change/threshold notification | Source evaluation or billing refresh dominates latency; faster agent invocation cannot make stale source data current |
 
 Record source event time, ingestion time (where applicable), alert fired time, adapter receipt, agent investigation start, and owner notification. Measure p50/p95 source-to-start and alert-to-start separately. Agree acceptance targets with each owner after measuring a sandbox baseline.
 
-### 2. Replace the eight scheduled investigations
+### 2. Event-driven replacements for the eight demo/fallback tasks
 
-Thresholds below are starting proposals requiring owner approval. For every trigger, retain the original investigation scope and evidence requirements, but focus the prompt on the affected resources and event window rather than rescanning the entire estate.
+Thresholds below are example starting values requiring owner approval. For every trigger, retain the original investigation scope and evidence requirements, but focus the prompt on the affected resources and event window rather than rescanning the entire estate.
 
-| Legacy task / owner agent | Proposed primary triggers | Evidence, filtering, and residual coverage |
+| Demo/fallback task / owner agent | Primary event-driven triggers | Evidence, filtering, and residual coverage |
 |---|---|---|
 | `w2-security-drift-daily` / `waf-security` (W2, UC02) | Activity Log successful `Microsoft.Authorization/roleAssignments/write` and `/delete`; writes affecting public access, network rules, policy assignments/exemptions, and Defender configuration. Policy Event Grid `Microsoft.PolicyInsights.PolicyStateCreated` / `PolicyStateChanged` when a relevant security policy becomes noncompliant. New/changed high-severity unhealthy Defender recommendations via an approved Defender workflow or continuous-export path. | Resolve role definition and assignment scope to identify privileged assignments; not every assignment is an incident. Read resulting configuration before asserting exposure. Policy evaluation and Defender exports are delayed and require separate enablement. Distinguish unhealthy posture from threat alerts, which stay with the SOC. Freshness reconciliation covers missing exports and unchanged pre-existing findings. |
 | `w4-out-of-band-changes-daily` / `waf-opex` (W4, UC04) | Successful in-scope Administrative write/delete/action events, filtered to relevant change operations; pipeline stage/deployment completion or failure events for the post-deployment gate. | Use immutable approved deployment principal IDs plus deployment/run correlation, not portal/CLI labels alone. Classify unknown actors for review; do not suppress every event by a pipeline principal. Enrich from Resource Graph `resourcechanges` after it becomes available. Bounded follow-up after the observation window closes; never label a release healthy before the evidence window exists. |
 | `w1-reliability-review-weekly` / `waf-reliability` (W1) | Resource Health degraded/unavailable, relevant Service Health events, changes to tier tags / redundancy / instance count / zone configuration, and newly surfaced Advisor HighAvailability findings where notifications are supported. | Re-evaluate the changed resource against the tier matrix and dependencies. Restore-test expiry uses a deadline monitor. Advisor findings without a supported change notification require lightweight snapshot comparison; initial inventory catches existing gaps. |
-| `w3-cost-waste-weekly` / `waf-cost` (W3, UC11) | Budget thresholds (propose 80% actual and 100% forecast), available Cost Management anomaly notifications, ingestion-volume deviation, and lifecycle changes that can leave orphaned resources. | Budget action groups only where supported at the chosen scope; anomaly notification delivery needs an approved adapter if not available as a Monitor incident. Propose ingestion >30% above a comparable baseline plus a minimum GB floor, tuned per workspace/table. `Usage` is delayed, not a live meter. Confirm orphan status after a grace period; reconcile idle/unchanged resources and Advisor Cost findings outside the agent. |
-| `w5-capacity-headroom-weekly` / `waf-performance` (W5, UC07, UC08) | AI throttling/error/latency metric alerts; AKS `FailedScheduling` / scale-failure signals; supported quota-utilization, SNAT, gateway, and subnet headroom thresholds (propose 70% warning / 85% critical). Deployment/vending preflight events also request a capacity check. | Not all quotas and subnet allocations expose native metrics. An approved collector must publish usage/limit snapshots and freshness into a custom metric or log where needed. Keep time-series samples for forecasting; do not rely on past agent runs for history. Existing AI/AKS response plans delegate capacity analysis rather than opening duplicate investigations. |
+| `w3-cost-waste-weekly` / `waf-cost` (W3, UC11) | Budget thresholds (example: 80% actual and 100% forecast), available Cost Management anomaly notifications, ingestion-volume deviation, and lifecycle changes that can leave orphaned resources. | Budget action groups only where supported at the chosen scope; anomaly notification delivery needs an approved adapter if not available as a Monitor incident. Use ingestion >30% above a comparable baseline plus a minimum GB floor as an initial threshold, tuned per workspace/table. `Usage` is delayed, not a live meter. Confirm orphan status after a grace period; reconcile idle/unchanged resources and Advisor Cost findings outside the agent. |
+| `w5-capacity-headroom-weekly` / `waf-performance` (W5, UC07, UC08) | AI throttling/error/latency metric alerts; AKS `FailedScheduling` / scale-failure signals; supported quota-utilization, SNAT, gateway, and subnet headroom thresholds (example: 70% warning / 85% critical). Deployment/vending preflight events also request a capacity check. | Not all quotas and subnet allocations expose native metrics. An approved collector must publish usage/limit snapshots and freshness into a custom metric or log where needed. Keep time-series samples for forecasting; do not rely on past agent runs for history. Existing AI/AKS response plans delegate capacity analysis rather than opening duplicate investigations. |
 | `uc05-monitoring-blind-spots-weekly` / `observability`, delegating to `vending-governance` (UC05, UC02) | Vending/deployment handover; diagnostic setting, DCR/association, alert rule and action-group writes/deletes; related Policy noncompliance. Freshness alerts for expected heartbeats, synthetic markers, and required tables. | Compare an independently maintained expected-resource registry with observed data, including resources that have never sent a row. Silence in an event-only table is not automatically a fault. Propose a five-minute marker and alert after two missed arrivals plus measured ingestion grace. Missing tags/budgets/Defender settings go to governance, not a second observability investigation. |
 | `uc10-backup-assurance-weekly` / `resilience` (UC10, W1) | Azure Backup built-in Azure Monitor failure/health alerts where supported; backup/restore job status diagnostics; writes/deletes affecting protection, backup policies, vault immutability or soft delete; restore-test completion events. | Cover both `Microsoft.RecoveryServices/vaults` and `Microsoft.DataProtection/backupVaults` where used. Monitor last recovery-point age against RPO, expected-job deadlines, and restore-test evidence expiry against tier targets. These absence conditions need independent deadline evaluation. Do not trigger a backup or restore. |
 | `uc12-incident-to-waf-monthly` / `platform-orchestrator` (UC12) | Human-confirmed incident resolution/closure event from the system of record, or an approved finding/change closure event. | Azure Monitor signal resolution does not prove root cause or incident closure. Use an authenticated incident-system adapter or explicit responder action; deduplicate by incident ID and closure revision. Draft one evidence-backed improvement immediately, linking existing recurrence history. Retain the monthly CCoE meeting as human governance, not as the investigation trigger. |
@@ -1129,11 +1129,11 @@ The current eight [response plans](infra/sre-agent/dataplane/response-plans.json
 
 ### 5. Migration and acceptance gates
 
-1. **Inventory:** map every legacy prompt requirement to a source, scope, owner and trigger above. Capture an initial read-only snapshot so unchanged existing drift, orphaned resources, missing diagnostics, budgets and recovery evidence are not lost. Identify unsupported tables/metrics and uncollected data explicitly.
+1. **Inventory:** map every investigation requirement to a source, scope, owner and trigger above. Capture an initial read-only snapshot so unchanged existing drift, orphaned resources, missing diagnostics, budgets and recovery evidence are not lost. Identify unsupported tables/metrics and uncollected data explicitly.
 2. **Wire source telemetry:** reuse AMBA and existing alerts first. The kit's [`activity-log.bicep`](infra/activity-log.bicep) exports Administrative, Policy, ServiceHealth and ResourceHealth categories only; it creates no alert rules. Add needed resource diagnostics, Policy events, Defender export, job logs, collectors and external adapters through separately approved deployments. Resource Graph is enrichment, not a streaming event source.
-3. **Shadow-test:** replay each supported sandbox signal and prove the expected agent, evidence window, Review mode and human notification. Keep legacy schedules available; suppress duplicate *agent* investigations through controlled test scope rather than disabling existing human alerts.
+3. **Shadow-test:** replay each supported sandbox signal and prove the expected agent, evidence window, Review mode and human notification. Keep demo/fallback schedules available during validation; suppress duplicate *agent* investigations through controlled test scope rather than disabling existing human alerts.
 4. **Prove edge cases:** test a manual NSG change, privileged role assignment, new Policy noncompliance, AI/AKS failure, backup job failure and overdue recovery point, never-seen telemetry source, ingestion spike, and incident closure. Test duplicate/retried events, revoked adapter credentials, out-of-order resolution, silent collectors, ingestion delay, and an unmatched alert. Verify exactly one intended investigation per event and a visible failure/escalation path.
-5. **Measure and cut over per task:** record source-to-start / alert-to-start latency, missed signals, false positives and AAU use. Only after owner acceptance persist `isEnabled = false` for that legacy schedule in the reviewed configuration and apply with `-UseEventDrivenResponsePlans -ConfirmScheduleCutover`. The apply script now honors these flags and refuses accidental routing rollback. Use the same persistent task configuration on subsequent applies. All schedules remain enabled by default until accepted cutover.
+5. **Measure and retire the fallback per task:** record source-to-start / alert-to-start latency, missed signals, false positives and AAU use. Only after owner acceptance persist `isEnabled = false` for that demo/fallback task in the reviewed configuration and apply with `-UseEventDrivenResponsePlans -ConfirmScheduleCutover`. The apply script honors these flags and refuses accidental routing rollback. Use the same persistent task configuration on subsequent applies.
 6. **Operate and roll back:** health-monitor rules, event subscriptions, adapters, collectors and intake with independent canaries. Alert human on-call if the agent or its AAU budget is unavailable. On replacement-path failure, retain direct paging and restore only the affected legacy task while repairing the route; do not delete monitoring resources.
 
 ### Documentation basis and outstanding verification
@@ -1142,7 +1142,7 @@ Repository evidence: [connectors and incident configuration](infra/sre-agent/age
 
 First-party references to validate during implementation: [Azure Monitor alert types](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-types), [log alert rules](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-create-log-alert-rule), [Activity Log alerts](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-create-activity-log-alert-rule), [Policy events](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/event-overview), [Defender continuous export](https://learn.microsoft.com/en-us/azure/defender-for-cloud/continuous-export), [budget automation](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/cost-management-budget-scenario), [Backup monitoring](https://learn.microsoft.com/en-us/azure/backup/backup-azure-monitoring-built-in-monitor), and [SRE Agent HTTP triggers](https://learn.microsoft.com/en-us/azure/sre-agent/http-triggers).
 
-Live Microsoft Learn access was unavailable while drafting this proposal. Exact source schemas, supported evaluation intervals, notification paths, HTTP-trigger contracts and incident-connector delivery behavior remain target-environment acceptance gates, not verified deployment claims.
+Exact source schemas, supported evaluation intervals, notification paths, HTTP-trigger contracts and incident-connector delivery behavior remain target-environment acceptance gates, not verified deployment claims.
 
 ---
 
@@ -1150,7 +1150,7 @@ Live Microsoft Learn access was unavailable while drafting this proposal. Exact 
 
 ## Demo guide - the starter kit in practice
 
-**Reference date: 20-10-2026.** This is a scripted demo path for the reference deployment in [infra\sre-agent\README.md](#deploy). Each demo states the **action** that triggers the agent, the **expected behaviour** and **how the agent should solve it**. The demos cover the five WAF pillars and the ALZ platform (AMBA alerts, management-group guardrails, vending readiness, AKS).
+**Reference date: 20-10-2026.** This is a scripted demo path for the reference deployment in [infra\sre-agent\README.md](#deploy). Event-driven alerts are the primary operating mode; this guide uses a mix of alert-driven demos and manual **Run now** invocations of scheduled demo tasks where an event integration is not configured. Scheduled tasks are a demo-only alternative or temporary fallback, not the normal investigation cadence. Each demo states the **action** that triggers the agent, the **expected behaviour** and **how the agent should solve it**. The demos cover the five WAF pillars and the ALZ platform (AMBA alerts, management-group guardrails, vending readiness, AKS).
 
 > Run these only in a sandbox or non-production subscription, with the agent in **Review** mode. Every incident investigation and every task run consumes Azure Agent Units (AAU) against the 2,000 AAU monthly cap. All Azure demo resources go into one throwaway resource group, `rg-sre-demo`, which you delete at the end. The one exception is demo 5, which deploys a uniquely named namespace into an existing non-production AKS cluster; deleting `rg-sre-demo` does not remove it, so clean it up separately.
 
@@ -1158,7 +1158,7 @@ Live Microsoft Learn access was unavailable while drafting this proposal. Exact 
 
 The reference agent's Bicep assigns subscription **Reader** only (check for an auto-added **Monitoring Contributor**, see demo 0), with access level Low and **Review** mode. So "solving" means:
 
-1. **Detect.** An alert arrives through a response plan, or a legacy scheduled task runs. The [event-driven trigger proposal](#triggers) replaces agent schedules with activity, metric/log-alert and lifecycle-event intake; the demos below still describe the legacy deployed configuration.
+1. **Detect.** In normal operation, an event arrives through a response plan or approved lifecycle-event integration. For demos without that integration, manually run the corresponding scheduled demo task. See the [event-driven operating model](#triggers).
 2. **Investigate.** The agent correlates the Activity Log, Resource Graph `resourcechanges`, metrics, logs and knowledge files.
 3. **Explain.** It reports the cause, the impact, the WAF checklist code and the owner.
 4. **Propose.** It suggests a fix: an IaC change, a CLI command or a policy assignment.
@@ -1204,7 +1204,7 @@ Checks before the audience arrives:
 | Agent is **Running** | `https://sre.azure.com` |
 | Incident platform shows **Azure Monitor** | **Builder > Incident platform** |
 | The 8 response plans are enabled in Review mode, and there is **no** `quickstart` plan | **Incidents > Triggers + response plans** |
-| The 8 scheduled tasks exist | **Automation**. For each demo, select the task and choose **Run now**. |
+| Scheduled demo tasks exist for demonstrations without event routing | **Automation**. Manually choose **Run now** for a demo; do not rely on recurring execution as the operating model. |
 
 ---
 
@@ -1757,9 +1757,9 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 - **Model:** the `MicrosoftFoundry` provider, chosen for EU Data Boundary alignment.
 - **Hand-offs:** agent-to-agent hand-offs are **not supported in workspace mode**. The data-plane API rejects them, so `platform-orchestrator` delegates to the specialists as Task-based subagents instead.
 
-### Legacy scheduled tasks (UTC, Review mode)
+### Demo and temporary-fallback scheduled tasks (UTC, Review mode)
 
-**Replacement design:** [event-driven SRE triggers](#triggers) maps every task below to Azure Monitor alerts, Azure activities and approved lifecycle-event integrations, including latency settings, routing gaps and absence/deadline monitoring. Starter deployment code is included below, but **has not been deployed or validated in Azure**. Each task now has a persisted boolean `isEnabled`; keep it true until all of that task's replacement paths are accepted.
+The [event-driven SRE operating model](#triggers) is the primary approach: use Azure Monitor alerts, Azure activities and approved lifecycle-event integrations, including latency settings, routing and absence/deadline monitoring. The schedules below exist for demos and temporary fallback during event-route validation; they are not the normal operating mode. Event alert rules and routes are staged, opt-in and **have not been deployed or validated in Azure**. Each schedule has a persisted boolean `isEnabled`; retain it only while needed for a demo or until its replacement path is accepted.
 
 | Task | Agent | Cron | Use case |
 | --- | --- | --- | --- |
@@ -1772,19 +1772,19 @@ All plans cover Sev0–Sev4, merge related alerts within 1 hour, and allow at mo
 | `uc10-backup-assurance-weekly` | resilience | `0 7 * * 5` | UC10 |
 | `uc12-incident-to-waf-monthly` | platform-orchestrator | `0 8 1 * *` | UC12 |
 
-Event-driven use cases that still need wiring include UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), the W4 post-deployment gate, and UC12 (confirmed incident closure). They need separately authorized **HTTP-trigger integrations** or alert rules that verified response plans can match. Log Analytics connectors do not trigger on new rows, and broad workspace/resource-type response plans must be narrowed or replaced before adding domain-specific log-alert routes.
+Event-driven use cases that still need wiring include UC01 (vending pipeline), UC06 and UC09 (acceptance and upgrade checks), the W4 post-deployment gate, and UC12 (confirmed incident closure). They need separately authorized **HTTP-trigger integrations** or alert rules that verified response plans can match. Log Analytics connectors do not trigger on new rows, and broad workspace/resource-type response plans must be narrowed or replaced before adding domain-specific log-alert routes. These gaps are implementation/acceptance work for the primary mode, not a reason to make broad scheduled investigations the default operating model.
 
 ### Event-driven deployment and cutover
 
 The starter contains **eight Activity Log rules**: security/identity changes, network changes, Resource Health, Service Health, disk lifecycle, failed capacity operations, monitoring changes and backup-protection changes. They use distinct `SRE-Wn-` / `SRE-UCnn-` tokens matching `event-response-plans.json`. Configuration changes request investigation; they are not proof of a fault. Health rules also receive recovery/update events.
 
-These are **not complete replacements for all legacy task requirements**. Add service-specific metric/log rules, Policy/Defender export, cost notifications, backup job/recovery-point deadlines, independent expected-resource registries and approved lifecycle adapters using the trigger proposal. The example heartbeat query illustrates a never-seen resource; it is not a subscription-wide inventory or collector. No HTTP adapter, Event Grid subscription, collector or cost integration is provisioned here.
+The starter rules are **not complete coverage for all investigation requirements**. Add service-specific metric/log rules, Policy/Defender export, cost notifications, backup job/recovery-point deadlines, independent expected-resource registries and approved lifecycle adapters using the event-driven operating model. The example heartbeat query illustrates a never-seen resource; it is not a subscription-wide inventory or collector. No HTTP adapter, Event Grid subscription, collector or cost integration is provisioned here.
 
 1. **Stage rules disabled.** In an ignored `*.local.bicepparam` copy of `main.bicepparam`, set `deployEventDrivenAlerts = true`, supply `eventActionGroupIds`, and leave `activateEventDrivenAlerts = false`. Add validated metric/log definitions to `eventMetricRules` / `eventLogRules` using the contracts in `event-alerts.bicep`. Query permissions, tables, region and alert evaluation eligibility must be proven first. Alternatively deploy the standalone module below into each approved source subscription; choose one deployment path per rule, not both.
 2. **Prepare routing.** Map existing AMBA rules and every new source rule to exactly one token. All existing broad managed plans will be disabled by `-UseEventDrivenResponsePlans`, so map their alert coverage before switching. Disable unmanaged overlapping plans (including quickstart) explicitly; the script blocks migration while potentially active unmanaged plans remain. Retain independent human on-call delivery. Pause agent incident intake during the route-set swap to avoid the brief overlap between new-plan activation and old-plan retirement.
 3. **Apply event routes.** Run the data-plane command below with `-UseEventDrivenResponsePlans`. It enables the 17 token routes in Review mode, then disables existing managed legacy routes only if preceding updates succeeded. A later apply without the event flag refuses to silently restore legacy routing. Partial API failure is reported; inspect and repair partially updated plans before resuming intake. This is not a transactional API.
-4. **Activate and prove.** Set `activateEventDrivenAlerts = true` (or `activate = true` for the standalone module) only after accepted routing/on-call checks, then restore agent intake. Keep schedules enabled while proving every required replacement, including unchanged pre-existing gaps and missing/deadline evidence. Measure event-to-investigation delay and duplicates.
-5. **Retire each schedule explicitly.** Set its `isEnabled` to false in `scheduled-tasks.json` (or an approved persistent file passed with `-ScheduledTasksFile`). Apply with both `-UseEventDrivenResponsePlans` and `-ConfirmScheduleCutover`. Flags are no longer hard-coded to true. Use the same reviewed configuration file on subsequent applies; do not revert to a file with enabled flags.
+4. **Activate and prove.** Set `activateEventDrivenAlerts = true` (or `activate = true` for the standalone module) only after accepted routing/on-call checks, then restore agent intake. Keep demo/fallback schedules available only as needed while proving event coverage, including unchanged pre-existing gaps and missing/deadline evidence. Measure event-to-investigation delay and duplicates.
+5. **Retire demo/fallback schedules explicitly.** Set a task's `isEnabled` to false in `scheduled-tasks.json` (or an approved persistent file passed with `-ScheduledTasksFile`) when it is no longer needed. Apply with both `-UseEventDrivenResponsePlans` and `-ConfirmScheduleCutover`. Flags are persisted; use the same reviewed configuration file on subsequent applies.
 
 ```powershell
 # Run from infra/sre-agent. Stage disabled rules in an existing approved monitoring RG.
@@ -1852,7 +1852,7 @@ Open the agent at `https://sre.azure.com`, check **Custom agents**, **Scheduled 
 
 The Mermaid architecture is included as source in Markdown. It renders on GitHub and in other Mermaid-capable Markdown viewers.
 
-**Event-driven update (03-11-2026):** the optional Activity Log/metric/log alert module, main deployment and both parameter examples compile locally. `tools/test-dataplane.ps1` exercises routing, explicit Review mode, persistent schedule flags, cutover guards, partial failure handling and explicit routing rollback using mocked Azure/API calls. The event-driven starter code has **not** been applied to Azure; metric/log queries, event delivery, actual incident-title matching, latency and the remaining external adapters/collectors require target-environment acceptance. Legacy schedules remain enabled by default.
+**Event-driven update (03-11-2026):** the staged Activity Log/metric/log alert module, main deployment and both parameter examples compile locally. `tools/test-dataplane.ps1` exercises routing, explicit Review mode, persistent schedule flags, cutover guards, partial failure handling and explicit routing rollback using mocked Azure/API calls. The event-driven primary operating model is documented, but its starter code has **not** been applied to Azure; metric/log queries, event delivery, actual incident-title matching, latency and the remaining external adapters/collectors require target-environment acceptance. Scheduled tasks remain in the reference deployment for demos and temporary fallback during validation.
 
 The optional `infra\main.bicep` monitoring skeleton is deliberately **not** an SRE Agent/connector/ALZ deployment. Its compilation demonstrates syntax and module-contract compatibility, not successful Azure deployment, data collection, private connectivity, policy compatibility, cost acceptance, or agent authorization. The SRE Agent itself is deployed by `infra\sre-agent`.
 
