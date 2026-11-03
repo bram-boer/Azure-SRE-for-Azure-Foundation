@@ -1,0 +1,31 @@
+{
+  "_note": "Opt-in, mutually exclusive title-token routes. Use -UseEventDrivenResponsePlans only after assigning exactly one token to every source rule and mapping existing AMBA rules. The apply script disables managed legacy plans after these plans succeed. Unmanaged enabled plans block migration.",
+  "defaults": {
+    "incidentPlatform": "AzMonitor",
+    "priorities": ["Sev0", "Sev1", "Sev2", "Sev3", "Sev4"],
+    "agentMode": "Review",
+    "maxAutomatedInvestigationAttempts": 2,
+    "mergeEnabled": true,
+    "mergeWindowHours": 1,
+    "isEnabled": true
+  },
+  "responsePlans": [
+    { "name": "rp-event-w1", "handlingAgent": "waf-reliability", "titleContains": "SRE-W1-", "useCase": "W1 - Health, resilience changes and recovery-evidence deadlines" },
+    { "name": "rp-event-w2", "handlingAgent": "waf-security", "titleContains": "SRE-W2-", "useCase": "W2 - Identity, exposure, Policy and Defender posture changes" },
+    { "name": "rp-event-w3", "handlingAgent": "waf-cost", "titleContains": "SRE-W3-", "useCase": "W3 + UC11 - Budget, cost, ingestion and waste findings" },
+    { "name": "rp-event-w4", "handlingAgent": "waf-opex", "titleContains": "SRE-W4-", "useCase": "W4 - Out-of-band changes and post-deployment evidence" },
+    { "name": "rp-event-w5", "handlingAgent": "waf-performance", "titleContains": "SRE-W5-", "useCase": "W5 - Capacity, quota and headroom" },
+    { "name": "rp-event-uc01", "handlingAgent": "vending-governance", "titleContains": "SRE-UC01-", "useCase": "UC01 - Vending failures" },
+    { "name": "rp-event-uc02", "handlingAgent": "vending-governance", "titleContains": "SRE-UC02-", "useCase": "UC02 - Handover and baseline compliance" },
+    { "name": "rp-event-uc03", "handlingAgent": "network", "titleContains": "SRE-UC03-", "useCase": "UC03 - Source-network synthetic and connectivity failures" },
+    { "name": "rp-event-uc04", "handlingAgent": "platform-orchestrator", "titleContains": "SRE-UC04-", "useCase": "UC04 - Service Health and change-correlated incidents" },
+    { "name": "rp-event-uc05", "handlingAgent": "observability", "titleContains": "SRE-UC05-", "useCase": "UC05 - Monitoring changes and independent freshness findings" },
+    { "name": "rp-event-uc06", "handlingAgent": "ai-platform", "titleContains": "SRE-UC06-", "useCase": "UC06 - AI platform acceptance findings" },
+    { "name": "rp-event-uc07", "handlingAgent": "ai-platform", "titleContains": "SRE-UC07-", "useCase": "UC07 - AI throttling, latency and quota findings" },
+    { "name": "rp-event-uc08", "handlingAgent": "aks-platform", "titleContains": "SRE-UC08-", "useCase": "UC08 - AKS platform failures" },
+    { "name": "rp-event-uc09", "handlingAgent": "aks-platform", "titleContains": "SRE-UC09-", "useCase": "UC09 - Upgrade preflight and regression findings" },
+    { "name": "rp-event-uc10", "handlingAgent": "resilience", "titleContains": "SRE-UC10-", "useCase": "UC10 - Backup job, protection and recovery-deadline findings" },
+    { "name": "rp-event-uc11", "handlingAgent": "finops", "titleContains": "SRE-UC11-", "useCase": "UC11 - Standalone FinOps findings; use W3 instead when overlapping" },
+    { "name": "rp-event-uc12", "handlingAgent": "platform-orchestrator", "titleContains": "SRE-UC12-", "useCase": "UC12 - Human-confirmed incident closure, never merely a resolved Monitor signal" }
+  ]
+}

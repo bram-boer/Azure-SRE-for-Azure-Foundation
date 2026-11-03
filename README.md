@@ -23,7 +23,7 @@ This is an **independent reference design grounded in Microsoft guidance**, not 
 | [event-driven-triggers.md](event-driven-triggers.md) | Proposed replacements for all eight agent schedules: Activity Log, Azure Monitor, log alerts and lifecycle events; routing, latency limits and safe migration gates |
 | [costs.md](costs.md) | Verified EUR/USD retail snapshot, cost assumptions, exclusions, and business-case worksheet |
 | [infra\README.md](infra/README.md) | Optional AVM Bicep monitoring skeleton; deliberately not an agent/ALZ deployment |
-| [infra\sre-agent\README.md](infra/sre-agent/README.md) | **Reference deployment** of one platform agent: Bicep (agent, identity, RBAC, incident platform, connectors) plus data-plane configuration (13 custom agents, 8 Review-mode scheduled tasks, 8 response plans, knowledge) |
+| [infra\sre-agent\README.md](infra/sre-agent/README.md) | **Reference deployment** of one platform agent: Bicep, connectors, 13 custom agents, 8 legacy Review-mode schedules and 8 legacy plans; opt-in activity/metric/log alerts, 17 event routes and guarded schedule cutover |
 | [demo-guide.md](demo-guide.md) | Scripted demo path (demos 0-9): trigger actions, expected agent behaviour and proposed fixes for ALZ (AMBA, guardrails, vending, AKS) and the five WAF pillars |
 | [queries\starter-queries.kql](queries/starter-queries.kql) | Bounded investigation examples, with Log Analytics versus Resource Graph clearly separated |
 | [research-sre-agent.md](research-sre-agent.md) | Product capability/source evidence and documentation ambiguities |

@@ -21,6 +21,8 @@
 
 The Mermaid architecture is included as source in Markdown. It renders on GitHub and in other Mermaid-capable Markdown viewers.
 
+**Event-driven update (03-11-2026):** the optional Activity Log/metric/log alert module, main deployment and both parameter examples compile locally. `tools/test-dataplane.ps1` exercises routing, explicit Review mode, persistent schedule flags, cutover guards, partial failure handling and explicit routing rollback using mocked Azure/API calls. The event-driven starter code has **not** been applied to Azure; metric/log queries, event delivery, actual incident-title matching, latency and the remaining external adapters/collectors require target-environment acceptance. Legacy schedules remain enabled by default.
+
 The optional `infra\main.bicep` monitoring skeleton is deliberately **not** an SRE Agent/connector/ALZ deployment. Its compilation demonstrates syntax and module-contract compatibility, not successful Azure deployment, data collection, private connectivity, policy compatibility, cost acceptance, or agent authorization. The SRE Agent itself is deployed by `infra\sre-agent`.
 
 ## Not executed - must pass in the target environment

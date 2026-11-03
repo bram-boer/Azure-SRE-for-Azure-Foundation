@@ -33,6 +33,21 @@ param logAnalyticsWorkspaceIds array = []
 @allowed([ 'AzMonitor', 'None' ])
 param incidentPlatformType string = 'AzMonitor'
 
+@description('Deploy event-driven Activity Log, metric and log alert rules. No effect on legacy schedules; migrate each after acceptance.')
+param deployEventDrivenAlerts bool = false
+
+@description('Activate the event rules only after data-plane routing and independent on-call delivery are accepted.')
+param activateEventDrivenAlerts bool = false
+
+@description('Existing independent human on-call action group IDs. Required when deployEventDrivenAlerts is true.')
+param eventActionGroupIds array = []
+
+@description('Additional target-specific metric rules matching the metricRule contract in event-alerts.bicep. Rule names must use one SRE-Wn- or SRE-UCnn- routing token.')
+param eventMetricRules array = []
+
+@description('Target-specific workspace log rules matching the logRule contract in event-alerts.bicep. Validate tables and query eligibility before deployment.')
+param eventLogRules array = []
+
 param tags object = {
   workload: 'sre-agent'
   purpose: 'platform-operations'
@@ -62,6 +77,19 @@ module core 'agent.bicep' = {
     managedSubscriptionId: subscription().subscriptionId
     logAnalyticsWorkspaceIds: logAnalyticsWorkspaceIds
     incidentPlatformType: incidentPlatformType
+  }
+}
+
+module eventAlerts 'event-alerts.bicep' = if (deployEventDrivenAlerts) {
+  name: 'sreagent-event-alerts'
+  scope: rg
+  params: {
+    actionGroupIds: eventActionGroupIds
+    activate: activateEventDrivenAlerts
+    activityRules: loadJsonContent('event-alerts.json').activityRules
+    metricRules: eventMetricRules
+    logRules: eventLogRules
+    tags: tags
   }
 }
 

@@ -7,6 +7,12 @@ param monthlyAgentUnitLimit = 2000
 param defaultModelProvider = 'MicrosoftFoundry'
 param defaultModelName = 'Automatic'
 param incidentPlatformType = 'AzMonitor'
+// Stage disabled rules first; activate only after response-plan routing and human notification are proven.
+param deployEventDrivenAlerts = false
+param activateEventDrivenAlerts = false
+param eventActionGroupIds = []
+param eventMetricRules = []
+param eventLogRules = []
 // Replace with your ALZ management workspace (AMBA, Activity Log) and AKS / Container insights workspace IDs.
 param logAnalyticsWorkspaceIds = [
   '/subscriptions/<subscription-id>/resourceGroups/<rg-management>/providers/Microsoft.OperationalInsights/workspaces/<law-management>'
