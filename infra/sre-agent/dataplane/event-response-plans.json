@@ -26,6 +26,8 @@
     { "name": "rp-event-uc09", "handlingAgent": "aks-platform", "titleContains": "SRE-UC09-", "useCase": "UC09 - Upgrade preflight and regression findings" },
     { "name": "rp-event-uc10", "handlingAgent": "resilience", "titleContains": "SRE-UC10-", "useCase": "UC10 - Backup job, protection and recovery-deadline findings" },
     { "name": "rp-event-uc11", "handlingAgent": "finops", "titleContains": "SRE-UC11-", "useCase": "UC11 - Standalone FinOps findings; use W3 instead when overlapping" },
-    { "name": "rp-event-uc12", "handlingAgent": "platform-orchestrator", "titleContains": "SRE-UC12-", "useCase": "UC12 - Human-confirmed incident closure, never merely a resolved Monitor signal" }
+    { "name": "rp-event-uc12", "handlingAgent": "platform-orchestrator", "titleContains": "SRE-UC12-", "useCase": "UC12 - Human-confirmed incident closure, never merely a resolved Monitor signal" },
+    { "name": "rp-event-uc13", "handlingAgent": "arc-governance", "titleContains": "SRE-UC13-", "useCase": "UC13 - Arc server connectivity, baseline compliance and inventory findings" },
+    { "name": "rp-event-uc14", "handlingAgent": "arc-patching", "titleContains": "SRE-UC14-", "useCase": "UC14 - Arc server patch and support-lifecycle findings" }
   ]
 }

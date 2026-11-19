@@ -129,7 +129,7 @@ if (-not $SkipKnowledge) {
     Write-Host "knowledge: $($files.Count)"
     foreach ($f in $files) {
         $content = Get-Content $f.path -Raw -Encoding utf8
-        if ($f.wrap) { $content = "# Validated starter queries (Azure Resource Graph / KQL)`n`n``````kusto`n$content`n``````" }
+        if ($f.wrap) { $content = "# Starter queries (Azure Resource Graph / KQL): validate in the target environment`n`n``````kusto`n$content`n``````" }
         $id = ($f.name.ToLower() -replace '[^a-z0-9-]', '-') -replace '-+', '-' -replace '^-|-$', ''
         Put-Extended -Kind 'connectors' -Name $id -Type 'KnowledgeItem' -Properties @{
             dataConnectorType  = 'KnowledgeFile'

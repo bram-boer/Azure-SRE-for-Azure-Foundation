@@ -2,7 +2,7 @@
 
 **Primary operating model.** Investigate from Azure Monitor alerts, relevant Azure activities, and approved pipeline or incident lifecycle events instead of waiting for broad daily, weekly, or monthly agent investigations. Keep every response plan and HTTP-triggered investigation explicitly in **Review** mode, scoped to approved resources. Existing IaC pipelines and human on-call remain authoritative. Scheduled tasks are retained only as a demo path or temporary fallback while each event route is validated.
 
-The [deployment code and cutover instructions](infra/sre-agent/README.md#event-driven-deployment-and-cutover) provide eight staged Activity Log rules, typed metric/log rule examples, seventeen Review-mode token routes, and persisted schedule flags. These alert rules and routes require deliberate deployment and target-environment acceptance; they are not active by default. Existing human on-call action groups are required; Event Grid subscriptions, adapters, collectors and HTTP triggers still require separate implementation. Keep the demo schedules available during validation, but do not use them as the normal production investigation cadence.
+The [deployment code and cutover instructions](infra/sre-agent/README.md#event-driven-deployment-and-cutover) provide eight staged Activity Log rules, typed metric/log rule examples, nineteen Review-mode token routes, and persisted schedule flags. These alert rules and routes require deliberate deployment and target-environment acceptance; they are not active by default. Existing human on-call action groups are required; Event Grid subscriptions, adapters, collectors and HTTP triggers still require separate implementation. Keep the demo schedules available during validation, but do not use them as the normal production investigation cadence.
 
 ## 1. Intake architecture and connector boundaries
 
@@ -51,7 +51,7 @@ Thresholds below are example starting values requiring owner approval. For every
 | `uc10-backup-assurance-weekly` / `resilience` (UC10, W1) | Azure Backup built-in Azure Monitor failure/health alerts where supported; backup/restore job status diagnostics; writes/deletes affecting protection, backup policies, vault immutability or soft delete; restore-test completion events. | Cover both `Microsoft.RecoveryServices/vaults` and `Microsoft.DataProtection/backupVaults` where used. Monitor last recovery-point age against RPO, expected-job deadlines, and restore-test evidence expiry against tier targets. These absence conditions need independent deadline evaluation. Do not trigger a backup or restore. |
 | `uc12-incident-to-waf-monthly` / `platform-orchestrator` (UC12) | Human-confirmed incident resolution/closure event from the system of record, or an approved finding/change closure event. | Azure Monitor signal resolution does not prove root cause or incident closure. Use an authenticated incident-system adapter or explicit responder action; deduplicate by incident ID and closure revision. Draft one evidence-backed improvement immediately, linking existing recurrence history. Retain the monthly CCoE meeting as human governance, not as the investigation trigger. |
 
-## 3. Trigger coverage for all twelve use cases
+## 3. Trigger coverage for all fourteen use cases
 
 | Use case | Trigger and route | Investigating agent |
 |---|---|---|
@@ -67,12 +67,16 @@ Thresholds below are example starting values requiring owner approval. For every
 | UC10 Backup / restore | Built-in backup alerts, job logs, protection changes and recovery-evidence deadlines -> Monitor plan; exercise completion -> HTTP trigger | `resilience` |
 | UC11 Cost / telemetry | Supported budget action group or anomaly adapter, ingestion anomaly alert, and capacity/lifecycle changes -> Monitor plan or HTTP trigger | `waf-cost` for W3 overlap; `finops` supplies domain evidence |
 | UC12 Incident improvement | Confirmed closure -> incident adapter / explicit responder HTTP trigger, with the approved incident evidence bundle | `platform-orchestrator` |
+| UC13 Arc governance | Relevant Policy state transition -> approved adapter, or tested Monitor alert; independent expected-fleet and assignment-freshness finding -> Monitor plan | `arc-governance` |
+| UC14 Arc patch / lifecycle | Supported patch failure / deadline alert -> Monitor plan; independent assessment freshness and support deadline monitor -> Monitor plan | `arc-patching` |
+
+UC13/UC14 routes are templates, not deployed sources. Prove the actual alert title, subject resource ID, source subscription, delivery and freshness independently. Policy events, patch alerts, collectors, adapters and an expected-server registry are not provisioned here. Deduplicate overlapping W2/UC13 and W4/UC14 findings by choosing one route for each source alert; maintain independent human notification.
 
 ## 4. Response-plan and delivery changes required
 
 The current eight [response plans](infra/sre-agent/dataplane/response-plans.json) do not cover all these signals. Resource-type routing alone is insufficient: workspace-scoped log alerts can all match `rp-log-analytics` even when their subject is AKS, security, cost, or backup.
 
-- Establish mutually exclusive rule-name tokens, for example `SRE-W2-`, `SRE-W4-`, `SRE-W1-`, `SRE-W3-`, `SRE-W5-`, `SRE-UC01-` through `SRE-UC12-`. Assign each new rule exactly one routing token; a W3/UC11 alert uses `SRE-W3-`, not both.
+- Establish mutually exclusive rule-name tokens, for example `SRE-W2-`, `SRE-W4-`, `SRE-W1-`, `SRE-W3-`, `SRE-W5-`, `SRE-UC01-` through `SRE-UC14-`. Assign each new rule exactly one routing token; a W3/UC11 alert uses `SRE-W3-`, not both.
 - Propose title-based plans for these tokens, using the existing `titleContains` pattern only after verifying the actual incident title. Include the affected resource ID in the payload: a workspace alert target is not necessarily the failed resource.
 - Replace or narrow broad resource-type plans as the token-based routes are enabled. Do not add a token plan alongside a broad matching plan and assume first-match wins. Specifically test Resource Health on AKS, workspace log alerts, Service Health, and Data Protection vault alerts. Rename or explicitly map existing AMBA rules without disturbing human on-call delivery.
 - Keep all routes in Review, with bounded investigation windows, the existing attempt cap, and an AAU budget. Do not change the existing one-hour merge window without proving that distinct failures still start promptly and remain independently actionable. Keep correlation separate from first-event delivery.

@@ -121,3 +121,35 @@ KubeEvents
 // W5 Performance - read-only Azure CLI (not KQL), run by an approved operator/tool:
 // az quota usage list --scope /subscriptions/<subId>/providers/Microsoft.Compute/locations/<region>
 // az network vnet list-usage --resource-group <rg> --name <hubOrSpokeVnet> --output table
+
+// UC13 - Azure Resource Graph: Arc resource inventory, not the expected fleet.
+// Check status/last observation against independent inventory and approved freshness limits.
+resources
+| where type =~ "microsoft.hybridcompute/machines"
+| project id, name, subscriptionId, resourceGroup, location, tags,
+    status = tostring(properties.status), lastStatusChange = properties.lastStatusChange,
+    osName = tostring(properties.osName), osVersion = tostring(properties.osVersion),
+    agentVersion = tostring(properties.agentVersion)
+
+// UC13 - Azure Resource Graph: reported guest assignments; absent rows are unknown.
+guestconfigurationresources
+| where type =~ "microsoft.guestconfiguration/guestconfigurationassignments"
+| extend targetResourceId = tostring(properties.targetResourceId)
+| where targetResourceId contains "/providers/Microsoft.HybridCompute/machines/"
+| project targetResourceId, name, compliance = tostring(properties.complianceStatus),
+    policyAssignmentId = tostring(properties.policyAssignmentId), report = properties.latestAssignmentReport
+
+// UC14 - Azure Resource Graph: recent Arc update assessment summaries.
+// Compare to the expected fleet separately; no row is not a successful assessment.
+patchassessmentresources
+| where type =~ "microsoft.hybridcompute/machines/patchassessmentresults"
+| project id, subscriptionId, assessmentTime = properties.lastModifiedDateTime,
+    status = tostring(properties.status), rebootPending = properties.rebootPending,
+    availablePatchCountByClassification = properties.availablePatchCountByClassification
+
+// UC14 - Azure Resource Graph: recent Arc installation summaries, not individual updates.
+patchinstallationresources
+| where type =~ "microsoft.hybridcompute/machines/patchinstallationresults"
+| project id, subscriptionId, installationTime = properties.lastModifiedDateTime,
+    status = tostring(properties.status), rebootStatus = tostring(properties.rebootStatus),
+    installedPatchCount = properties.installedPatchCount, failedPatchCount = properties.failedPatchCount

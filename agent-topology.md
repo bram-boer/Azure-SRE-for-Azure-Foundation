@@ -104,6 +104,8 @@ Default: one **platform-operations agent** owned by the CCoE/platform team, assu
 | UC10 Backup and restore assurance | **Combine** | `resilience` custom agent; job/health alerts, protection changes, recovery deadlines and restore-test completion | Backup is run by a separate team with its own on-call (A1) |
 | UC11 Cost and telemetry anomaly | **Combine** | `waf-cost` handles W3 overlap with `finops` domain evidence; budget/anomaly/ingestion signals | FinOps requires its own budget or cap (A5) or its own team agent (A1) |
 | UC12 Incident-to-WAF loop | **Combine** | Confirmed incident-closure event to the orchestrator | No; run it in each agent that exists |
+| UC13 Arc governance and compliance | **Combine** | `arc-governance`; Policy or approved freshness/inventory alert | Hybrid operations has a separate team, identity or on-call (A1/A2) |
+| UC14 Arc patch and lifecycle | **Combine** | `arc-patching`; patch failure or approved deadline/freshness alert | Hybrid patching has a separate team, identity or on-call (A1/A2) |
 | Future: write/remediation actions | **Separate or gated** | Preferably not in the read-only pilot agent | Write permissions require a separate boundary (A2). Alternatively widen per resource group after the trust gate in the [setup guide](setup-guide.md#9-operational-acceptance-measurement-and-rollback) |
 
 **Workload teams.** Application teams in vended landing zones may run their own team agent, one per team rather than one per subscription. Do not add agent creation to the subscription-vending pipeline by default. Instead, vending should hand over the scope, telemetry, and owner so that the right team agent can add the new subscription.
@@ -112,7 +114,7 @@ Default: one **platform-operations agent** owned by the CCoE/platform team, assu
 
 | Organization | Recommended topology | Indicative fixed cost/month (WE retail) |
 |---|---|---|
-| One CCoE/platform team runs ALZ, vending, AI LZ and AKS platform | **1 platform agent** containing UC01-UC12 | EUR 349.52 |
+| One CCoE/platform team runs ALZ, vending, AI LZ, AKS platform and hybrid servers | **1 platform agent** containing UC01-UC14 | EUR 349.52 |
 | Platform team plus a dedicated AKS platform team | **2 agents**: platform (UC01-UC07, UC10-UC12) and AKS (UC08-UC09, plus its own UC12) | EUR 699.04 |
 | Platform, AKS, and AI platform teams, each with its own on-call | **3 agents**: UC06-UC07 and UC08-UC09 move out | EUR 1,048.56 |
 | Additional mandated boundary (separate tenant, regulated scope, or a different incident platform or model) | Add **1 agent per boundary**, with its justification recorded | +EUR 349.52 each |
