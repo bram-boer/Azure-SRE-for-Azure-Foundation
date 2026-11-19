@@ -51,6 +51,8 @@ All five use cases start **read-only, with every response plan and HTTP-triggere
 - Zone configuration of hub/shared resources: Azure Firewall, Application Gateway, public IPs, gateways (SKU ending in `AZ`), Private DNS Resolver, Key Vault, and AKS node pools (`properties.agentPoolProfiles[].availabilityZones`).
 - Resource Health availability history (`healthresources`) and Service Health events.
 - Backup job and restore-test evidence (UC10), ASR replication health, and the declared tier/RTO/RPO tag from vending.
+- For applicable Arc-enabled Windows servers, WinRE and supported Quick Machine Recovery configuration plus independently tested recovery evidence (UC10); configuration alone does not demonstrate recovery.
+- Where deployed, Azure Monitor health models can relate workload signals and dependencies to business impact. Unknown or stale health is not healthy; independently monitor evaluation freshness because Unknown states do not trigger health-model alerts.
 
 **Set up:**
 1. **Declare targets in vending.** Add a `reliability-tier` tag (for example T1-T3) and an RTO/RPO reference to the vending request and the acceptance manifest (UC02). Without targets this use case can only report configuration, not risk (RE:04).
@@ -94,6 +96,7 @@ The agent **triages posture**; it does not hunt threats.
 - Noncompliance on ALZ security policy initiatives (`policyresources`, UC02).
 - PaaS resources with `publicNetworkAccess = Enabled` where the landing-zone archetype (corp/online) forbids it.
 - New Owner, Contributor, or User Access Administrator assignments at subscription scope (Activity Log `Microsoft.Authorization/roleAssignments/write`).
+- Arc Machine Configuration drift and unassessed servers (UC13), and overdue patches or ESU/support risk (UC14), delegated to the respective Arc specialists rather than duplicate investigations.
 
 **Set up:**
 1. **Capture the baseline** as a knowledge file: per archetype (corp, online, AI, AKS), the required policy initiatives, network exposure rules, privileged-role rules (PIM-only, no standing Owner), and the Defender plans expected.
@@ -172,6 +175,7 @@ The agent **triages posture**; it does not hunt threats.
 - Pipeline completion events (deployment name, commit, and scope).
 - `resourcechanges` in Resource Graph, using `clientType` and `changedBy` to separate pipeline from portal/CLI changes. Retention is limited (about 14 days), so export it if needed.
 - Activity Log, AMBA alerts fired after the deployment, Resource Health, and policy compliance change.
+- Hybrid patch assessment and installation outcomes, maintenance windows and lifecycle deadlines (UC14); the workload owner retains change and reboot authority.
 
 **Set up:**
 1. **Propose an authenticated HTTP-trigger integration** after the ALZ, vending, or AKS pipeline completes or fails. Validate the target agent's trigger contract first; this kit does not deploy the integration. Pass the deployment ID, commit, scope, and time window. Keep the pipeline's own gates authoritative. The agent's verdict is advisory until it is proven.

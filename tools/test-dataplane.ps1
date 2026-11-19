@@ -63,6 +63,14 @@ try {
     foreach ($p in $events.responsePlans) {
         Assert ($p.handlingAgent -in $agentNames) "Unknown agent for $($p.name)"
     }
+    foreach ($case in @('13', '14')) {
+        $route = @($events.responsePlans | Where-Object { $_.titleContains -eq "SRE-UC$case-" })
+        Assert ($route.Count -eq 1) "Missing or duplicate UC$case route"
+        $expectedAgent = if ($case -eq '13') { 'arc-governance' } else { 'arc-patching' }
+        Assert ($route[0].handlingAgent -eq $expectedAgent) "Wrong agent for UC$case"
+        $matches = @($events.responsePlans | Where-Object { "SRE-UC$case-test".Contains($_.titleContains) })
+        Assert ($matches.Count -eq 1) "Ambiguous UC$case route"
+    }
     $sourceRules = (Get-Content "$root/infra/sre-agent/event-alerts.json" -Raw | ConvertFrom-Json).activityRules
     foreach ($rule in $sourceRules) {
         $matches = @($events.responsePlans | Where-Object { $rule.name.Contains($_.titleContains) })
@@ -89,7 +97,7 @@ try {
     })
     Run-Apply @{ UseEventDrivenResponsePlans = $true; ScheduledTasksFile = $temp; ConfirmScheduleCutover = $true }
     $plans = @($global:SreDataPlaneTest.writes | Where-Object type -eq 'IncidentFilter')
-    Assert (@($plans | Where-Object { $_.name -in $events.responsePlans.name -and $_.properties.isEnabled }).Count -eq 17) 'Event routes not enabled'
+    Assert (@($plans | Where-Object { $_.name -in $events.responsePlans.name -and $_.properties.isEnabled }).Count -eq 19) 'Event routes not enabled'
     Assert (@($plans | Where-Object { $_.name -in $legacy.responsePlans.name -and -not $_.properties.isEnabled }).Count -eq 8) 'Legacy routes not retired'
     $persisted = $global:SreDataPlaneTest.writes | Where-Object { $_.name -eq $tasks.scheduledTasks[0].name }
     Assert ($persisted.properties.isEnabled -eq $false) 'Disabled schedule was re-enabled'
@@ -110,7 +118,7 @@ try {
     Run-Apply @{} 'Event-driven routing already exists'
     Assert ($global:SreDataPlaneTest.writes.Count -eq 0) 'Default apply reverted event routing'
     Run-Apply @{ RestoreLegacyResponsePlans = $true }
-    Assert (@($global:SreDataPlaneTest.writes | Where-Object { $_.name -in $events.responsePlans.name -and -not $_.properties.isEnabled }).Count -eq 17) 'Explicit rollback did not retire event routes'
+    Assert (@($global:SreDataPlaneTest.writes | Where-Object { $_.name -in $events.responsePlans.name -and -not $_.properties.isEnabled }).Count -eq 19) 'Explicit rollback did not retire event routes'
 
     $global:SreDataPlaneTest.invalidList = $true
     Run-Apply @{ UseEventDrivenResponsePlans = $true } 'Unexpected incident-filter list response'

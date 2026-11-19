@@ -6,7 +6,7 @@
 
 **Execution contract:** SRE Agent investigates. Existing ALZ/vending/accelerator pipelines remain authoritative for change. Human-created change requests are sufficient for this starter kit. Automatic PR creation, pipeline triggering, cost exports, and scorecards require separately authorized integration; no such connector is deployed here.
 
-**Primary trigger model:** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven operating model](event-driven-triggers.md) maps all twelve cases, including no-data/deadline coverage. Scheduled tasks are retained only for demos or temporary fallback. The starter routes still require deployment and target-environment acceptance; log connectors provide query access, not automatic triggers.
+**Primary trigger model:** investigate on Azure Monitor alerts, relevant Azure activities, and approved pipeline/incident lifecycle events rather than waiting for agent schedules. The [event-driven operating model](event-driven-triggers.md) maps all fourteen cases, including no-data/deadline coverage. Scheduled tasks are retained only for demos or temporary fallback. The starter routes still require deployment and target-environment acceptance; log connectors provide query access, not automatic triggers.
 
 ## Prioritization and benefit map
 
@@ -26,8 +26,10 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 | UC10 / P2 | Platform backup and restore assurance | Management; business continuity | Reliability, Security | Evidence of recoverability, not just backup configuration | Faster diagnosis of failed jobs and test restores | Combine - platform agent |
 | UC11 / P2 | Platform cost and telemetry anomaly | Governance; management | Cost Optimization, Performance Efficiency | Cost attribution and optimization backlog | Isolate ingestion, scale, and agent-usage cost drivers | Combine; split only for separate FinOps budget/team |
 | UC12 / P1 | Incident-to-WAF improvement loop | Governance; platform automation | All five pillars | Repeatable evidence for governance reviews | Less manual incident narrative and runbook upkeep | Combine - runs in every agent |
+| UC13 / P1 | Arc server governance and configuration compliance | Hybrid management; governance | Security, Operational Excellence | Consistent hybrid baseline and exception ownership | Identify disconnected, unassessed or drifting servers | Combine - `arc-governance` |
+| UC14 / P1 | Arc patch and end-of-support readiness | Hybrid management; operations | Security, Reliability, Operational Excellence | Evidence of patch and lifecycle risk | Triage failed patches and Windows Server ESU readiness | Combine - `arc-patching` |
 
-**Agent placement:** by default all twelve use cases run in **one platform-operations agent**, each as a custom agent with an alert response plan or approved lifecycle-event trigger. Split to a separate agent only for a recorded trigger: team/on-call, permissions boundary, incident platform, model/data residency, budget, tenant, or hosting region/network. Production versus test alone is not a trigger while the agent is read-only and in Review mode. With write access or Autonomous plans, separate prod and non-prod. Details and implementation per use case: [agent-topology.md](agent-topology.md#5-per-use-case-placement).
+**Agent placement:** by default all fourteen use cases run in **one platform-operations agent**, using domain custom agents with an alert response plan or approved lifecycle-event trigger. Split to a separate agent only for a recorded trigger: team/on-call, permissions boundary, incident platform, model/data residency, budget, tenant, or hosting region/network. Production versus test alone is not a trigger while the agent is read-only and in Review mode. With write access or Autonomous plans, separate prod and non-prod. Details and implementation per use case: [agent-topology.md](agent-topology.md#5-per-use-case-placement).
 
 ## UC01 - Subscription-vending failure triage
 
@@ -194,6 +196,7 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 3. Ask SRE Agent to explain gaps and failed jobs using service evidence. "Last job succeeded" does not prove restore usability or RTO/RPO compliance.
 4. Plan an isolated restore/rebuild, capacity and network access checks, verification steps, and cleanup. Never overwrite production or trigger regional failover automatically.
 5. Conduct the authorized exercise and attach measured recovery time/data-loss evidence, not a compliance assertion.
+6. For eligible Arc-enabled Windows servers, include Windows Recovery Environment (WinRE) configuration and, where supported, Windows Server 2025 Quick Machine Recovery in the recovery-readiness evidence. Configuration is not proof of recovery; test in an approved isolated environment. The Ignite capabilities and their availability must be verified for the target scope.
 
 **Exercise / pass:** restore an approved non-sensitive sandbox artifact/service into an isolated target, validate integrity and a user flow, and compare measured results to the approved targets.
 
@@ -234,5 +237,39 @@ Benefits below are hypotheses to measure against a pre-pilot baseline, not produ
 **Measure:** actionable follow-up closure; repeat-incident rate; responder editing time; unsupported-claim rate. **Benefit:** CCoE turns incident evidence into reusable standards; teams reduce repetitive documentation without outsourcing accountability.
 
 **Basis:** [WAF framework](https://learn.microsoft.com/en-us/azure/well-architected/); [WAF observability](https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/observability).
+
+## UC13 - Arc server governance and configuration compliance
+
+**Owner:** hybrid server operations; security owns baseline and exceptions, workload owners accept service risks. **Signal:** relevant Policy transition, Arc connectivity or machine-configuration finding, inventory finding, or independent freshness deadline.
+
+**Set up:**
+1. Establish an authoritative expected-server inventory with owner, environment, criticality, approved scope, operating system and maintenance ownership. Compare it with Arc resources; a missing resource or stale agent is unknown, not compliant. Place projected resources under the appropriate ALZ governance and access boundary.
+2. Identify approved Machine Configuration assignments and exceptions; verify extension deployment, supported OS, licensing, connectivity and evaluation freshness. Compare guest assignment compliance with the baseline and policy assignment rather than treating an absent assignment as a pass. Include disconnected and pending states.
+3. Optionally enable **Machine Inventory (preview)** for approved scope and data classifications. Use its software, service and certificate evidence where collected, respecting supported OS categories and freshness; it is not a complete discovery source. Connected Configuration Manager inventory refreshes daily and can take up to 24 hours to appear.
+4. Route a relevant finding to `arc-governance` in Review mode. Provide resource ID, assignment, policy, last observation, expected baseline, exception and owner; expose unknown or inaccessible evidence. Changes, remediation and exception decisions remain with the owners.
+5. Monitor missing expected servers, stale assessments and inactive collectors independently. Resource Graph is an evidence source, not a streaming trigger; Policy events and any adapter or freshness collector require separate setup.
+
+**Exercise / pass:** in an approved sandbox, create a noncompliant guest setting and an independently registered server with missing or stale evidence. The investigation distinguishes drift from unknown, cites the assignment and owner, and performs no remediation.
+
+**Measure:** expected-server coverage; disconnected or stale percentage; baseline noncompliance by age; time to owner acknowledgement; accepted exceptions with expiry.
+
+**Basis:** [Hybrid ALZ](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/hybrid/enterprise-scale-landing-zone); [Machine Configuration reporting](https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance); [Ignite 2026 Machine Configuration](https://techcommunity.microsoft.com/blog/AzureGovernanceandManagementBlog/machine-configuration--ignite-2026/4573872); [Machine Inventory preview](https://techcommunity.microsoft.com/blog/AzureGovernanceandManagementBlog/public-preview-see-whats-running-across-your-servers-with-machine-inventory/4573924).
+
+## UC14 - Arc patch and end-of-support readiness
+
+**Owner:** hybrid server/patch operations; workload owner approves maintenance and reboot; licensing owner validates ESU eligibility and cost. **Signal:** failed or overdue patch assessment/install, maintenance deadline, disconnected server, or support/ESU deadline.
+
+**Set up:**
+1. Register the expected fleet, support dates, OS edition, patch source, maintenance window, owner, criticality, upgrade plan and exception. Check Arc connection and update assessment freshness, and distinguish missing data from a successful assessment.
+2. Review Update Manager assessment and installation outcomes, missing updates and reboot status against the approved window. Assessment history in Resource Graph is available for seven days and installation history for 30 days; export evidence if longer retention is required. Check the actual patch source and any competing patch tools before proposing a change.
+3. For Windows Server 2016, verify Standard/Datacenter eligibility, Connected Machine agent version **1.62 or later**, licensing/entitlement, ESU license activation and linkage, and access to Microsoft Update or WSUS. Enrollment makes eligible updates available; it does not install them. Windows Server 2016 support ends **12-01-2027**; Arc ESU configuration is available from **03-08-2026** and billing starts **13-01-2027**. Plan upgrade/migration, not indefinite ESU reliance.
+4. Windows Server 2012/2012 R2 ESU ended **13-10-2026**; the final ESU update was issued that day and Arc ESU licenses were deactivated on 14-10-2026 UTC. Escalate remaining systems for approved isolation, upgrade, migration or risk acceptance; do not recommend new ESU coverage as a solution.
+5. Send the relevant alert to `arc-patching` in Review mode with resource ID, timestamps, assessment and installation evidence, ownership and unknowns. Independently monitor missing reports and deadlines. Do not enroll, patch, reboot, upgrade or alter maintenance windows. Confirm service pricing and entitlements; Arc Update Manager can incur charges.
+
+**Exercise / pass:** using approved sandbox evidence, distinguish an overdue assessment, a failed installation, and an eligible-but-unpatched ESU server; identify the owners and proposed next steps without changes. Test an unsupported 2012/R2 server separately.
+
+**Measure:** fleet with fresh assessments; critical updates overdue; failed patch jobs; reboot backlog; 2016 machines with verified ESU coverage or approved upgrade plans; unsupported servers by age.
+
+**Basis:** [Update Manager Resource Graph data](https://learn.microsoft.com/en-us/azure/update-manager/query-logs); [Arc ESU preparation](https://learn.microsoft.com/en-us/azure/azure-arc/servers/prepare-extended-security-updates); [Update Manager pricing FAQ](https://learn.microsoft.com/en-us/azure/update-manager/update-manager-faq).
 
 **Next:** for proactive, pillar-specific checks rather than incident-driven ones, see [waf-pillar-use-cases.md](waf-pillar-use-cases.md) (W1 Reliability to W5 Performance Efficiency).
